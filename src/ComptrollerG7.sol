@@ -10,8 +10,8 @@ import "./Unitroller.sol";
 import "./Governance/Comp.sol";
 
 /**
- * @title Compound's Comptroller Contract
- * @author Compound
+ * @title Mach's Comptroller Contract
+ * @author Mach
  */
 contract ComptrollerG7 is ComptrollerV5Storage, ComptrollerInterface, ComptrollerErrorReporter, ExponentialNoError {
     /// @notice Emitted when an admin supports a market
@@ -777,7 +777,7 @@ contract ComptrollerG7 is ComptrollerV5Storage, ComptrollerInterface, Comptrolle
             }
             vars.oraclePrice = Exp({mantissa: vars.oraclePriceMantissa});
 
-            // Pre-compute a conversion factor from tokens -> ether (normalized price value)
+            // Pre-compute a conversion factor from tokens -> sonic (normalized price value)
             vars.tokensToDenom = mul_(mul_(vars.collateralFactor, vars.exchangeRate), vars.oraclePrice);
 
             // sumCollateral += tokensToDenom * cTokenBalance

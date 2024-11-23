@@ -4,7 +4,7 @@ pragma solidity ^0.8.10;
 import "./InterestRateModel.sol";
 
 /**
- * @title Logic for Compound's JumpRateModel Contract V2.
+ * @title Logic for Mach's JumpRateModel Contract V2.
  * @author Compound (modified by Dharma Labs, refactored by Arr00)
  * @notice Version 2 modifies Version 1 by enabling updateable parameters.
  */
@@ -96,7 +96,7 @@ abstract contract BaseJumpRateModelV2 is InterestRateModel {
             return 0;
         }
 
-        return borrows * BASE / (cash + borrows - reserves);
+        return (borrows * BASE) / (cash + borrows - reserves);
     }
 
     /**
@@ -135,8 +135,8 @@ abstract contract BaseJumpRateModelV2 is InterestRateModel {
     {
         uint256 oneMinusReserveFactor = BASE - reserveFactorMantissa;
         uint256 borrowRate = getBorrowRateInternal(cash, borrows, reserves);
-        uint256 rateToPool = borrowRate * oneMinusReserveFactor / BASE;
-        return utilizationRate(cash, borrows, reserves) * rateToPool / BASE;
+        uint256 rateToPool = (borrowRate * oneMinusReserveFactor) / BASE;
+        return (utilizationRate(cash, borrows, reserves) * rateToPool) / BASE;
     }
 
     /**

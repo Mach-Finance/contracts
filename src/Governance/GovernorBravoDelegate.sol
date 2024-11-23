@@ -5,7 +5,7 @@ import "./GovernorBravoInterfaces.sol";
 
 contract GovernorBravoDelegate is GovernorBravoDelegateStorageV2, GovernorBravoEvents {
     /// @notice The name of this contract
-    string public constant name = "Compound Governor Bravo";
+    string public constant name = "Mach Governor Bravo";
 
     /// @notice The minimum setable proposal threshold
     uint256 public constant MIN_PROPOSAL_THRESHOLD = 1000e18; // 1,000 Comp

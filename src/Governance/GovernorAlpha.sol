@@ -3,7 +3,7 @@ pragma solidity ^0.8.10;
 
 contract GovernorAlpha {
     /// @notice The name of this contract
-    string public constant name = "Compound Governor Alpha";
+    string public constant name = "Mach Governor Alpha";
 
     /// @notice The number of votes in support of a proposal required in order for a quorum to be reached and for a vote to succeed
     function quorumVotes() public pure returns (uint256) {
@@ -30,10 +30,10 @@ contract GovernorAlpha {
         return 17280;
     } // ~3 days in blocks (assuming 15s blocks)
 
-    /// @notice The address of the Compound Protocol Timelock
+    /// @notice The address of the Mach Protocol Timelock
     TimelockInterface public timelock;
 
-    /// @notice The address of the Compound governance token
+    /// @notice The address of the Mach governance token
     CompInterface public comp;
 
     /// @notice The address of the Governor Guardian

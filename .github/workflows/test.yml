@@ -7,7 +7,9 @@ on:
 
 env:
   FOUNDRY_PROFILE: ci
-
+  SONIC_TESTNET_RPC_URL: ${{ secrets.SONIC_TESTNET_RPC_URL }}
+  FTM_MAINNET_RPC_URL: ${{ secrets.FTM_MAINNET_RPC_URL }}
+  
 jobs:
   check:
     strategy:

@@ -4,9 +4,9 @@ pragma solidity ^0.8.10;
 import "./CErc20Delegate.sol";
 
 /**
- * @title Compound's CDai Contract
+ * @title Mach's CDai Contract
  * @notice CToken which wraps Multi-Collateral DAI
- * @author Compound
+ * @author Mach
  */
 contract CDaiDelegate is CErc20Delegate {
     /**

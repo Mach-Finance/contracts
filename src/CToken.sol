@@ -9,9 +9,9 @@ import "./InterestRateModel.sol";
 import "./ExponentialNoError.sol";
 
 /**
- * @title Compound's CToken Contract
+ * @title Mach's CToken Contract
  * @notice Abstract base for CTokens
- * @author Compound
+ * @author Mach
  */
 abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorReporter {
     /**
@@ -302,7 +302,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
              */
             uint256 totalCash = getCashPrior();
             uint256 cashPlusBorrowsMinusReserves = totalCash + totalBorrows - totalReserves;
-            uint256 exchangeRate = cashPlusBorrowsMinusReserves * expScale / _totalSupply;
+            uint256 exchangeRate = (cashPlusBorrowsMinusReserves * expScale) / _totalSupply;
 
             return exchangeRate;
         }
@@ -413,7 +413,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
 
         /*
          *  We call `doTransferIn` for the minter and the mintAmount.
-         *  Note: The cToken must handle variations between ERC-20 and ETH underlying.
+         *  Note: The cToken must handle variations between ERC-20 and SONIC underlying.
          *  `doTransferIn` reverts if anything goes wrong, since we can't be sure if
          *  side-effects occurred. The function returns the amount actually transferred,
          *  in case of a fee. On success, the cToken holds an additional `actualMintAmount`
@@ -531,7 +531,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
 
         /*
          * We invoke doTransferOut for the redeemer and the redeemAmount.
-         *  Note: The cToken must handle variations between ERC-20 and ETH underlying.
+         *  Note: The cToken must handle variations between ERC-20 and SONIC underlying.
          *  On success, the cToken has redeemAmount less of cash.
          *  doTransferOut reverts if anything goes wrong, since we can't be sure if side effects occurred.
          */
@@ -599,7 +599,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
 
         /*
          * We invoke doTransferOut for the borrower and the borrowAmount.
-         *  Note: The cToken must handle variations between ERC-20 and ETH underlying.
+         *  Note: The cToken must handle variations between ERC-20 and SONIC underlying.
          *  On success, the cToken borrowAmount less of cash.
          *  doTransferOut reverts if anything goes wrong, since we can't be sure if side effects occurred.
          */
@@ -661,7 +661,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
 
         /*
          * We call doTransferIn for the payer and the repayAmount
-         *  Note: The cToken must handle variations between ERC-20 and ETH underlying.
+         *  Note: The cToken must handle variations between ERC-20 and SONIC underlying.
          *  On success, the cToken holds an additional repayAmount of cash.
          *  doTransferIn reverts if anything goes wrong, since we can't be sure if side effects occurred.
          *   it returns the amount actually transferred, in case of a fee.
@@ -1005,7 +1005,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
 
         /*
          * We call doTransferIn for the caller and the addAmount
-         *  Note: The cToken must handle variations between ERC-20 and ETH underlying.
+         *  Note: The cToken must handle variations between ERC-20 and SONIC underlying.
          *  On success, the cToken holds an additional addAmount of cash.
          *  doTransferIn reverts if anything goes wrong, since we can't be sure if side effects occurred.
          *  it returns the amount actually transferred, in case of a fee.

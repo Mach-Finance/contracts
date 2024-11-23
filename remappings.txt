@@ -1,0 +1,2 @@
+@pythnetwork/pyth-sdk-solidity/=lib/pyth-crosschain/target_chains/ethereum/sdk/solidity
+@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/

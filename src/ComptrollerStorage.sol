@@ -126,6 +126,12 @@ contract ComptrollerV4Storage is ComptrollerV3Storage {
 
     // @notice Borrow caps enforced by borrowAllowed for each cToken address. Defaults to zero which corresponds to unlimited borrowing.
     mapping(address => uint256) public borrowCaps;
+
+    // @notice The supplyCapGuardian can set supplyCaps to any number for any market. Lowering the supply cap could disable supplying on the given market.
+    address public supplyCapGuardian;
+
+    // @notice Supply caps enforced by supplyAllowed for each cToken address. Defaults to zero which corresponds to unlimited supplying.
+    mapping(address => uint256) public supplyCaps;
 }
 
 contract ComptrollerV5Storage is ComptrollerV4Storage {
@@ -142,12 +148,4 @@ contract ComptrollerV6Storage is ComptrollerV5Storage {
 
     /// @notice The rate at which comp is distributed to the corresponding supply market (per block)
     mapping(address => uint256) public compSupplySpeeds;
-}
-
-contract ComptrollerV7Storage is ComptrollerV6Storage {
-    /// @notice Flag indicating whether the function to fix COMP accruals has been executed (RE: proposal 62 bug)
-    bool public proposal65FixExecuted;
-
-    /// @notice Accounting storage mapping account addresses to how much COMP they owe the protocol.
-    mapping(address => uint256) public compReceivable;
 }

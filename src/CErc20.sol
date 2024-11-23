@@ -8,9 +8,9 @@ interface CompLike {
 }
 
 /**
- * @title Compound's CErc20 Contract
+ * @title Mach's CErc20 Contract
  * @notice CTokens which wrap an EIP-20 underlying
- * @author Compound
+ * @author Mach
  */
 contract CErc20 is CToken, CErc20Interface {
     /**
@@ -134,6 +134,19 @@ contract CErc20 is CToken, CErc20Interface {
         require(address(token) != underlying, "CErc20::sweepToken: can not sweep underlying token");
         uint256 balance = token.balanceOf(address(this));
         token.transfer(admin, balance);
+    }
+
+    /**
+     * @notice Admin function to sweep any SONIC in the contract
+     * @dev Only the admin can sweep the SONIC
+     */
+    function sweepNative() external {
+        require(msg.sender == admin, "CErc20::sweepSonic: only admin can sweep sonic");
+        uint256 balance = address(this).balance;
+        require(balance > 0, "CErc20::sweepSonic: no balance to sweep");
+
+        (bool sent,) = payable(admin).call{value: balance}("");
+        require(sent, "CErc20::sweepSonic: failed to send ether");
     }
 
     /**

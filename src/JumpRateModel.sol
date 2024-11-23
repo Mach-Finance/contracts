@@ -4,8 +4,8 @@ pragma solidity ^0.8.10;
 import "./InterestRateModel.sol";
 
 /**
- * @title Compound's JumpRateModel Contract
- * @author Compound
+ * @title Mach's JumpRateModel Contract
+ * @author Mach
  */
 contract JumpRateModel is InterestRateModel {
     event NewInterestParams(
@@ -70,7 +70,7 @@ contract JumpRateModel is InterestRateModel {
             return 0;
         }
 
-        return borrows * BASE / (cash + borrows - reserves);
+        return (borrows * BASE) / (cash + borrows - reserves);
     }
 
     /**
@@ -84,11 +84,11 @@ contract JumpRateModel is InterestRateModel {
         uint256 util = utilizationRate(cash, borrows, reserves);
 
         if (util <= kink) {
-            return (util * multiplierPerBlock / BASE) + baseRatePerBlock;
+            return ((util * multiplierPerBlock) / BASE) + baseRatePerBlock;
         } else {
-            uint256 normalRate = (kink * multiplierPerBlock / BASE) + baseRatePerBlock;
+            uint256 normalRate = ((kink * multiplierPerBlock) / BASE) + baseRatePerBlock;
             uint256 excessUtil = util - kink;
-            return (excessUtil * jumpMultiplierPerBlock / BASE) + normalRate;
+            return ((excessUtil * jumpMultiplierPerBlock) / BASE) + normalRate;
         }
     }
 
@@ -108,7 +108,7 @@ contract JumpRateModel is InterestRateModel {
     {
         uint256 oneMinusReserveFactor = BASE - reserveFactorMantissa;
         uint256 borrowRate = getBorrowRate(cash, borrows, reserves);
-        uint256 rateToPool = borrowRate * oneMinusReserveFactor / BASE;
-        return utilizationRate(cash, borrows, reserves) * rateToPool / BASE;
+        uint256 rateToPool = (borrowRate * oneMinusReserveFactor) / BASE;
+        return (utilizationRate(cash, borrows, reserves) * rateToPool) / BASE;
     }
 }

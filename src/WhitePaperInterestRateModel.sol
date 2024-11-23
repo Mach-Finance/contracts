@@ -4,9 +4,9 @@ pragma solidity ^0.8.10;
 import "./InterestRateModel.sol";
 
 /**
- * @title Compound's WhitePaperInterestRateModel Contract
- * @author Compound
- * @notice The parameterized model described in section 2.4 of the original Compound Protocol whitepaper
+ * @title Mach's WhitePaperInterestRateModel Contract
+ * @author Mach
+ * @notice The parameterized model described in section 2.4 of the original Mach Protocol whitepaper
  */
 contract WhitePaperInterestRateModel is InterestRateModel {
     event NewInterestParams(uint256 baseRatePerBlock, uint256 multiplierPerBlock);
@@ -53,7 +53,7 @@ contract WhitePaperInterestRateModel is InterestRateModel {
             return 0;
         }
 
-        return borrows * BASE / (cash + borrows - reserves);
+        return (borrows * BASE) / (cash + borrows - reserves);
     }
 
     /**
@@ -65,7 +65,7 @@ contract WhitePaperInterestRateModel is InterestRateModel {
      */
     function getBorrowRate(uint256 cash, uint256 borrows, uint256 reserves) public view override returns (uint256) {
         uint256 ur = utilizationRate(cash, borrows, reserves);
-        return (ur * multiplierPerBlock / BASE) + baseRatePerBlock;
+        return ((ur * multiplierPerBlock) / BASE) + baseRatePerBlock;
     }
 
     /**
@@ -84,7 +84,7 @@ contract WhitePaperInterestRateModel is InterestRateModel {
     {
         uint256 oneMinusReserveFactor = BASE - reserveFactorMantissa;
         uint256 borrowRate = getBorrowRate(cash, borrows, reserves);
-        uint256 rateToPool = borrowRate * oneMinusReserveFactor / BASE;
-        return utilizationRate(cash, borrows, reserves) * rateToPool / BASE;
+        uint256 rateToPool = (borrowRate * oneMinusReserveFactor) / BASE;
+        return (utilizationRate(cash, borrows, reserves) * rateToPool) / BASE;
     }
 }
