@@ -125,4 +125,7 @@ contract TokenErrorReporter {
 
     error SetInterestRateModelOwnerCheck();
     error SetInterestRateModelFreshCheck();
+
+    error SetProtocolSeizeShareOwnerCheck();
+    error SetProtocolSeizeShareFreshCheck();
 }

@@ -10,7 +10,7 @@ import "./InterestRateModel.sol";
  */
 abstract contract BaseJumpRateModelV2 is InterestRateModel {
     event NewInterestParams(
-        uint256 baseRatePerBlock, uint256 multiplierPerBlock, uint256 jumpMultiplierPerBlock, uint256 kink
+        uint256 baseRatePerTimestamp, uint256 multiplierPerTimestamp, uint256 jumpMultiplierPerTimestamp, uint256 kink
     );
 
     uint256 private constant BASE = 1e18;
@@ -21,24 +21,24 @@ abstract contract BaseJumpRateModelV2 is InterestRateModel {
     address public owner;
 
     /**
-     * @notice The approximate number of blocks per year that is assumed by the interest rate model
+     * @notice The approximate number of timestamps per year that is assumed by the interest rate model
      */
-    uint256 public constant blocksPerYear = 2102400;
+    uint256 public constant timestampsPerYear = 60 * 60 * 24 * 365;
 
     /**
      * @notice The multiplier of utilization rate that gives the slope of the interest rate
      */
-    uint256 public multiplierPerBlock;
+    uint256 public multiplierPerTimestamp;
 
     /**
      * @notice The base interest rate which is the y-intercept when utilization rate is 0
      */
-    uint256 public baseRatePerBlock;
+    uint256 public baseRatePerTimestamp;
 
     /**
-     * @notice The multiplierPerBlock after hitting a specified utilization point
+     * @notice The multiplierPerTimestamp after hitting a specified utilization point
      */
-    uint256 public jumpMultiplierPerBlock;
+    uint256 public jumpMultiplierPerTimestamp;
 
     /**
      * @notice The utilization point at which the jump multiplier is applied
@@ -49,7 +49,7 @@ abstract contract BaseJumpRateModelV2 is InterestRateModel {
      * @notice Construct an interest rate model
      * @param baseRatePerYear The approximate target base APR, as a mantissa (scaled by BASE)
      * @param multiplierPerYear The rate of increase in interest rate wrt utilization (scaled by BASE)
-     * @param jumpMultiplierPerYear The multiplierPerBlock after hitting a specified utilization point
+     * @param jumpMultiplierPerYear The multiplierPerTimestamp after hitting a specified utilization point
      * @param kink_ The utilization point at which the jump multiplier is applied
      * @param owner_ The address of the owner, i.e. the Timelock contract (which has the ability to update parameters directly)
      */
@@ -69,7 +69,7 @@ abstract contract BaseJumpRateModelV2 is InterestRateModel {
      * @notice Update the parameters of the interest rate model (only callable by owner, i.e. Timelock)
      * @param baseRatePerYear The approximate target base APR, as a mantissa (scaled by BASE)
      * @param multiplierPerYear The rate of increase in interest rate wrt utilization (scaled by BASE)
-     * @param jumpMultiplierPerYear The multiplierPerBlock after hitting a specified utilization point
+     * @param jumpMultiplierPerYear The multiplierPerTimestamp after hitting a specified utilization point
      * @param kink_ The utilization point at which the jump multiplier is applied
      */
     function updateJumpRateModel(
@@ -100,31 +100,31 @@ abstract contract BaseJumpRateModelV2 is InterestRateModel {
     }
 
     /**
-     * @notice Calculates the current borrow rate per block, with the error code expected by the market
+     * @notice Calculates the current borrow rate per timestamp, with the error code expected by the market
      * @param cash The amount of cash in the market
      * @param borrows The amount of borrows in the market
      * @param reserves The amount of reserves in the market
-     * @return The borrow rate percentage per block as a mantissa (scaled by BASE)
+     * @return The borrow rate percentage per timestamp as a mantissa (scaled by BASE)
      */
     function getBorrowRateInternal(uint256 cash, uint256 borrows, uint256 reserves) internal view returns (uint256) {
         uint256 util = utilizationRate(cash, borrows, reserves);
 
         if (util <= kink) {
-            return ((util * multiplierPerBlock) / BASE) + baseRatePerBlock;
+            return ((util * multiplierPerTimestamp) / BASE) + baseRatePerTimestamp;
         } else {
-            uint256 normalRate = ((kink * multiplierPerBlock) / BASE) + baseRatePerBlock;
+            uint256 normalRate = ((kink * multiplierPerTimestamp) / BASE) + baseRatePerTimestamp;
             uint256 excessUtil = util - kink;
-            return ((excessUtil * jumpMultiplierPerBlock) / BASE) + normalRate;
+            return ((excessUtil * jumpMultiplierPerTimestamp) / BASE) + normalRate;
         }
     }
 
     /**
-     * @notice Calculates the current supply rate per block
+     * @notice Calculates the current supply rate per timestamp
      * @param cash The amount of cash in the market
      * @param borrows The amount of borrows in the market
      * @param reserves The amount of reserves in the market
      * @param reserveFactorMantissa The current reserve factor for the market
-     * @return The supply rate percentage per block as a mantissa (scaled by BASE)
+     * @return The supply rate percentage per timestamp as a mantissa (scaled by BASE)
      */
     function getSupplyRate(uint256 cash, uint256 borrows, uint256 reserves, uint256 reserveFactorMantissa)
         public
@@ -143,7 +143,7 @@ abstract contract BaseJumpRateModelV2 is InterestRateModel {
      * @notice Internal function to update the parameters of the interest rate model
      * @param baseRatePerYear The approximate target base APR, as a mantissa (scaled by BASE)
      * @param multiplierPerYear The rate of increase in interest rate wrt utilization (scaled by BASE)
-     * @param jumpMultiplierPerYear The multiplierPerBlock after hitting a specified utilization point
+     * @param jumpMultiplierPerYear The multiplierPerTimestamp after hitting a specified utilization point
      * @param kink_ The utilization point at which the jump multiplier is applied
      */
     function updateJumpRateModelInternal(
@@ -152,11 +152,11 @@ abstract contract BaseJumpRateModelV2 is InterestRateModel {
         uint256 jumpMultiplierPerYear,
         uint256 kink_
     ) internal {
-        baseRatePerBlock = baseRatePerYear / blocksPerYear;
-        multiplierPerBlock = (multiplierPerYear * BASE) / (blocksPerYear * kink_);
-        jumpMultiplierPerBlock = jumpMultiplierPerYear / blocksPerYear;
+        baseRatePerTimestamp = ((baseRatePerYear * BASE) / timestampsPerYear) / BASE;
+        multiplierPerTimestamp = (multiplierPerYear * BASE) / (timestampsPerYear * kink_);
+        jumpMultiplierPerTimestamp = ((jumpMultiplierPerYear * BASE) / timestampsPerYear) / BASE;
         kink = kink_;
 
-        emit NewInterestParams(baseRatePerBlock, multiplierPerBlock, jumpMultiplierPerBlock, kink);
+        emit NewInterestParams(baseRatePerTimestamp, multiplierPerTimestamp, jumpMultiplierPerTimestamp, kink);
     }
 }

@@ -11,11 +11,11 @@ import "./InterestRateModel.sol";
  */
 contract JumpRateModelV2 is InterestRateModel, BaseJumpRateModelV2 {
     /**
-     * @notice Calculates the current borrow rate per block
+     * @notice Calculates the current borrow rate per timestamp
      * @param cash The amount of cash in the market
      * @param borrows The amount of borrows in the market
      * @param reserves The amount of reserves in the market
-     * @return The borrow rate percentage per block as a mantissa (scaled by 1e18)
+     * @return The borrow rate percentage per timestamp as a mantissa (scaled by 1e18)
      */
     function getBorrowRate(uint256 cash, uint256 borrows, uint256 reserves) external view override returns (uint256) {
         return getBorrowRateInternal(cash, borrows, reserves);

@@ -98,8 +98,8 @@ contract CDaiDelegate is CErc20Delegate {
 
     /**
      * @notice Accrues DSR then applies accrued interest to total borrows and reserves
-     * @dev This calculates interest accrued from the last checkpointed block
-     *      up to the current block and writes new checkpoint to storage.
+     * @dev This calculates interest accrued from the last checkpointed timestamp
+     *      up to the current timestamp and writes new checkpoint to storage.
      */
     function accrueInterest() public override returns (uint256) {
         // Accumulate DSR interest
