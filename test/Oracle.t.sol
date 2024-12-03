@@ -76,7 +76,7 @@ contract OracleTest is BaseTest {
     function _deployPythOracle() internal {
         vm.startPrank(admin);
         address[] memory underlyingTokens = new address[](2);
-        underlyingTokens[0] = address(underlyingErc20Token);
+        underlyingTokens[0] = address(wbtc);
         underlyingTokens[1] = NATIVE_ASSET;
 
         bytes32[] memory priceFeedIds = new bytes32[](2);
@@ -90,7 +90,7 @@ contract OracleTest is BaseTest {
     function _deployBandOracle() internal {
         vm.startPrank(admin);
         address[] memory underlyingTokens = new address[](2);
-        underlyingTokens[0] = address(underlyingErc20Token);
+        underlyingTokens[0] = address(wbtc);
         underlyingTokens[1] = NATIVE_ASSET;
 
         string[] memory bandSymbols = new string[](2);
@@ -109,7 +109,7 @@ contract OracleTest is BaseTest {
         oracles[0] = pythOracle;
         oracles[1] = bandOracle;
 
-        priceOracleAggregator.updateTokenOracles(address(underlyingErc20Token), oracles);
+        priceOracleAggregator.updateTokenOracles(address(wbtc), oracles);
         priceOracleAggregator.updateTokenOracles(NATIVE_ASSET, oracles);
         vm.stopPrank();
     }
@@ -119,7 +119,7 @@ contract OracleTest is BaseTest {
         // BTC decimals = 8
         // adjustedPrice = (price * 10^(decimals - exponent)) * 10^(36 - decimals) = price * 10^28
         // A 33-digit number would be between 10^32 and 10^33
-        (uint256 btcPrice, bool isBtcPriceValid) = pythOracle.getPrice(address(underlyingErc20Token));
+        (uint256 btcPrice, bool isBtcPriceValid) = pythOracle.getPrice(address(wbtc));
         vm.assertGt(btcPrice, 1e32);
         vm.assertLt(btcPrice, 1e33);
         vm.assertTrue(isBtcPriceValid);
@@ -140,7 +140,7 @@ contract OracleTest is BaseTest {
     function test_bandOracle_getUnderlyingPrice() public {
         vm.skip(isSonicTestnet);
 
-        (uint256 btcPrice, bool isBtcPriceValid) = bandOracle.getPrice(address(underlyingErc20Token));
+        (uint256 btcPrice, bool isBtcPriceValid) = bandOracle.getPrice(address(wbtc));
         vm.assertGt(btcPrice, 1e32);
         vm.assertLt(btcPrice, 1e33);
         vm.assertTrue(isBtcPriceValid);
@@ -243,12 +243,11 @@ contract OracleTest is BaseTest {
         ftmOracles[0] = bandOracle;
         ftmOracles[1] = pythOracle;
 
-        priceOracleAggregator.updateTokenOracles(address(underlyingErc20Token), btcOracles);
+        priceOracleAggregator.updateTokenOracles(address(wbtc), btcOracles);
         priceOracleAggregator.updateTokenOracles(NATIVE_ASSET, ftmOracles);
         vm.stopPrank();
 
-        (uint256 btcPythOraclePrice, bool isBtcPythOraclePriceValid) =
-            pythOracle.getPrice(address(underlyingErc20Token));
+        (uint256 btcPythOraclePrice, bool isBtcPythOraclePriceValid) = pythOracle.getPrice(address(wbtc));
         (uint256 ftmBandOraclePrice, bool isFtmBandOraclePriceValid) = bandOracle.getPrice(NATIVE_ASSET);
 
         uint256 btcPrice = priceOracleAggregator.getUnderlyingPrice(CToken(address(cWbtcDelegator)));
@@ -270,7 +269,7 @@ contract OracleTest is BaseTest {
 
         vm.prank(user);
         vm.expectRevert(abi.encodeWithSelector(OwnableUnauthorizedAccount.selector, user));
-        priceOracleAggregator.updateTokenOracles(address(underlyingErc20Token), btcOracles);
+        priceOracleAggregator.updateTokenOracles(address(wbtc), btcOracles);
     }
 
     function test_pythOracle_setPriceFeedId() public {
@@ -385,12 +384,12 @@ contract OracleTest is BaseTest {
         oracles[1] = bandOracle;
 
         vm.expectEmit(true, false, false, true);
-        emit TokenOraclesUpdated(address(underlyingErc20Token), oracles);
-        priceOracleAggregator.updateTokenOracles(address(underlyingErc20Token), oracles);
+        emit TokenOraclesUpdated(address(wbtc), oracles);
+        priceOracleAggregator.updateTokenOracles(address(wbtc), oracles);
 
         vm.expectEmit(true, false, false, true);
-        emit UnderlyingTokenPriceFeedSet(address(underlyingErc20Token), bytes32(uint256(10)));
-        pythOracle.setPriceFeedId(address(underlyingErc20Token), bytes32(uint256(10)));
+        emit UnderlyingTokenPriceFeedSet(address(wbtc), bytes32(uint256(10)));
+        pythOracle.setPriceFeedId(address(wbtc), bytes32(uint256(10)));
 
         vm.expectEmit(true, false, false, true);
         emit UnderlyingSymbolSet(NATIVE_ASSET, "ETH");

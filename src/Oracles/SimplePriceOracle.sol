@@ -13,7 +13,7 @@ contract SimplePriceOracle is PriceOracle {
 
     function _getUnderlyingAddress(CToken cToken) private view returns (address) {
         address asset;
-        if (compareStrings(cToken.symbol(), "cSONIC")) {
+        if (compareStrings(cToken.symbol(), "cSonic")) {
             asset = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
         } else {
             asset = address(CErc20(address(cToken)).underlying());

@@ -30,8 +30,13 @@ contract BaseTest is Test, IError, IEvents {
     CErc20Delegator public cWbtcDelegator;
     CErc20Delegate public cErc20Delegate;
     Comptroller public comptroller;
-    InterestRateModel public interestRateModel;
-    ERC20Mock public underlyingErc20Token;
+    JumpRateModelV2 public interestRateModel;
+    ERC20Mock public wbtc;
+
+    uint256 internal baseRatePerYear = 0;
+    uint256 internal multiplierPerYear = 0.25e18;
+    uint256 internal jumpMultiplierPerYear = 5e18;
+    uint256 internal kink_ = 0.8e18;
 
     address public admin = makeAddr("admin");
 
@@ -40,17 +45,11 @@ contract BaseTest is Test, IError, IEvents {
 
         vm.startPrank(admin);
         comptroller = new Comptroller();
-        interestRateModel = new JumpRateModelV2(
-            1e18, // baseRatePerYear
-            0.5e18, // multiplierPerYear
-            0.5e18, // jumpMultiplierPerYear
-            0.8e18, // kink_
-            admin
-        );
-        underlyingErc20Token = new MockERC20(8);
+        interestRateModel = new JumpRateModelV2(baseRatePerYear, multiplierPerYear, jumpMultiplierPerYear, kink_, admin);
+        wbtc = new MockERC20(8);
         cErc20Delegate = new CErc20Delegate();
         cWbtcDelegator = new CErc20Delegator(
-            address(underlyingErc20Token), // underlying
+            address(wbtc), // underlying
             comptroller, // comptroller
             interestRateModel, // interestRateModel
             1e18, // initialExchangeRateMantissa
@@ -63,7 +62,7 @@ contract BaseTest is Test, IError, IEvents {
         );
         cSonic = new CSonic(comptroller, interestRateModel, 1e18, "Sonic", "cSonic", 18, payable(admin));
 
-        vm.assertEq(underlyingErc20Token.decimals(), 8);
+        vm.assertEq(wbtc.decimals(), 8);
 
         comptroller._supportMarket(CToken(address(cWbtcDelegator)));
         comptroller._supportMarket(cSonic);
