@@ -7,7 +7,7 @@ import "./PriceOracle.sol";
 import "./ComptrollerInterface.sol";
 import "./ComptrollerStorage.sol";
 import "./Unitroller.sol";
-import "./Governance/Comp.sol";
+import "./Rewards/RewardDistributor.sol";
 
 /**
  * @title Mach's Comptroller Contract
@@ -44,25 +44,6 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
     /// @notice Emitted when an action is paused on a market
     event ActionPaused(CToken cToken, string action, bool pauseState);
 
-    /// @notice Emitted when a new borrow-side COMP speed is calculated for a market
-    event CompBorrowSpeedUpdated(CToken indexed cToken, uint256 newSpeed);
-
-    /// @notice Emitted when a new supply-side COMP speed is calculated for a market
-    event CompSupplySpeedUpdated(CToken indexed cToken, uint256 newSpeed);
-
-    /// @notice Emitted when a new COMP speed is set for a contributor
-    event ContributorCompSpeedUpdated(address indexed contributor, uint256 newSpeed);
-
-    /// @notice Emitted when COMP is distributed to a supplier
-    event DistributedSupplierComp(
-        CToken indexed cToken, address indexed supplier, uint256 compDelta, uint256 compSupplyIndex
-    );
-
-    /// @notice Emitted when COMP is distributed to a borrower
-    event DistributedBorrowerComp(
-        CToken indexed cToken, address indexed borrower, uint256 compDelta, uint256 compBorrowIndex
-    );
-
     /// @notice Emitted when borrow cap for a cToken is changed
     event NewBorrowCap(CToken indexed cToken, uint256 newBorrowCap);
 
@@ -75,14 +56,8 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
     /// @notice Emitted when supply cap guardian is changed
     event NewSupplyCapGuardian(address oldSupplyCapGuardian, address newSupplyCapGuardian);
 
-    /// @notice Emitted when COMP is granted by admin
-    event CompGranted(address recipient, uint256 amount);
-
-    /// @notice Emitted when COMP accrued for a user has been manually adjusted.
-    event CompAccruedAdjusted(address indexed user, uint256 oldCompAccrued, uint256 newCompAccrued);
-
-    /// @notice The initial COMP index for a market
-    uint224 public constant compInitialIndex = 1e36;
+    /// @notice Emitted when the reward distributor is changed
+    event NewRewardDistributor(RewardDistributor oldRewardDistributor, RewardDistributor newRewardDistributor);
 
     // closeFactorMantissa must be strictly greater than this value
     uint256 internal constant closeFactorMinMantissa = 0.05e18; // 0.05
@@ -267,6 +242,8 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
             require(nextTotalSupplies < supplyCap, "market supply cap reached");
         }
 
+        // Keep the flywheel moving
+        updateAndDistributeSupplierRewardsForToken(cToken, minter);
         return uint256(Error.NO_ERROR);
     }
 
@@ -309,6 +286,9 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
         if (allowed != uint256(Error.NO_ERROR)) {
             return allowed;
         }
+
+        // Keep the flywheel moving
+        updateAndDistributeSupplierRewardsForToken(cToken, redeemer);
 
         return uint256(Error.NO_ERROR);
     }
@@ -415,6 +395,9 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
             return uint256(Error.INSUFFICIENT_LIQUIDITY);
         }
 
+        // Keep the flywheel moving
+        updateAndDistributeBorrowerRewardsForToken(cToken, borrower);
+
         return uint256(Error.NO_ERROR);
     }
 
@@ -457,6 +440,9 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
         if (!markets[cToken].isListed) {
             return uint256(Error.MARKET_NOT_LISTED);
         }
+
+        // Keep the flywheel moving
+        updateAndDistributeBorrowerRewardsForToken(cToken, borrower);
 
         return uint256(Error.NO_ERROR);
     }
@@ -594,6 +580,10 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
             return uint256(Error.COMPTROLLER_MISMATCH);
         }
 
+        // Keep the flywheel moving
+        updateAndDistributeSupplierRewardsForToken(cTokenCollateral, borrower);
+        updateAndDistributeSupplierRewardsForToken(cTokenCollateral, liquidator);
+
         return uint256(Error.NO_ERROR);
     }
 
@@ -647,6 +637,10 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
         if (allowed != uint256(Error.NO_ERROR)) {
             return allowed;
         }
+
+        // Keep the flywheel moving
+        updateAndDistributeSupplierRewardsForToken(cToken, src);
+        updateAndDistributeSupplierRewardsForToken(cToken, dst);
 
         return uint256(Error.NO_ERROR);
     }
@@ -1101,6 +1095,15 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
         return uint256(Error.NO_ERROR);
     }
 
+    function _setRewardDistributor(RewardDistributor newRewardDistributor) public {
+        require(msg.sender == admin, "only admin can set reward distributor");
+
+        RewardDistributor oldRewardDistributor = rewardDistributor;
+        rewardDistributor = newRewardDistributor;
+
+        emit NewRewardDistributor(oldRewardDistributor, newRewardDistributor);
+    }
+
     function _setMintPaused(CToken cToken, bool state) public returns (bool) {
         require(markets[address(cToken)].isListed, "cannot pause a market that is not listed");
         require(msg.sender == pauseGuardian || msg.sender == admin, "only pause guardian and admin can pause");
@@ -1178,11 +1181,72 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
         return block.timestamp;
     }
 
+    //// **** Rewards Distributor **** /////
+
+    function updateAndDistributeSupplierRewardsForToken(address cToken, address supplier) internal {
+        if (address(rewardDistributor) != address(0)) {
+            rewardDistributor.updateSupplyIndexAndDisburseSupplierRewards(CToken(cToken), supplier);
+        }
+    }
+
+    function updateAndDistributeBorrowerRewardsForToken(address cToken, address borrower) internal {
+        if (address(rewardDistributor) != address(0)) {
+            rewardDistributor.updateBorrowIndexAndDisburseBorrowerRewards(CToken(cToken), borrower);
+        }
+    }
+
     /**
-     * @notice Return the address of the COMP token
-     * @return The address of COMP
+     * @notice Claim all the rewards accrued by holder in all markets
      */
-    function getCompAddress() public view virtual returns (address) {
-        return 0xc00e94Cb662C3520282E6f5717214004A7f26888;
+    function claimReward() public {
+        claimReward(msg.sender, allMarkets);
+    }
+
+    /**
+     * @notice Claim all the rewards accrued by holder in all markets
+     * @param holder The address to claim rewards for
+     */
+    function claimReward(address holder) public {
+        return claimReward(holder, allMarkets);
+    }
+
+    /**
+     * @notice Claim all the rewards accrued by holder in the specified markets
+     * @param holder The address to claim rewards for
+     * @param cTokens The list of markets to claim rewards in
+     */
+    function claimReward(address holder, CToken[] memory cTokens) public {
+        address[] memory holders = new address[](1);
+        holders[0] = holder;
+        claimRewards(holders, cTokens, true, true);
+    }
+
+    /**
+     * @notice Claim all rewards accrued by the holders
+     * @param holders The addresses to claim rewards for
+     * @param cTokens The list of markets to claim rewards in
+     * @param borrowers Whether or not to claim rewards earned by borrowing
+     * @param suppliers Whether or not to claim rewards earned by supplying
+     */
+    function claimRewards(address[] memory holders, CToken[] memory cTokens, bool borrowers, bool suppliers) public {
+        require(address(rewardDistributor) != address(0), "No reward distributor configured!");
+        for (uint256 i = 0; i < cTokens.length; i++) {
+            CToken cToken = cTokens[i];
+            require(markets[address(cToken)].isListed, "market must be listed");
+
+            if (suppliers == true) {
+                rewardDistributor.updateSupplyIndex(cToken);
+                for (uint256 holderIndex = 0; holderIndex < holders.length; holderIndex++) {
+                    rewardDistributor.disburseSupplierRewards(cToken, holders[holderIndex]);
+                }
+            }
+
+            if (borrowers == true) {
+                rewardDistributor.updateBorrowIndex(cToken);
+                for (uint256 holderIndex = 0; holderIndex < holders.length; holderIndex++) {
+                    rewardDistributor.disburseBorrowerRewards(cToken, holders[holderIndex]);
+                }
+            }
+        }
     }
 }

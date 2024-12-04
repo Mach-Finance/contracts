@@ -109,8 +109,7 @@ contract OracleTest is BaseTest {
         vm.startPrank(admin);
 
         address priceOracleAggregatorProxyAddress = Upgrades.deployUUPSProxy(
-            "PriceOracleAggregator.sol",
-            abi.encodeCall(PriceOracleAggregator.initialize, (admin))
+            "PriceOracleAggregator.sol", abi.encodeCall(PriceOracleAggregator.initialize, (admin))
         );
         priceOracleAggregator = PriceOracleAggregator(payable(priceOracleAggregatorProxyAddress));
 

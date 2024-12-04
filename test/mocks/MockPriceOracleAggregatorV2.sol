@@ -21,5 +21,5 @@ contract MockPriceOracleAggregatorV2 is Initializable, Ownable2StepUpgradeable, 
         return counter;
     }
 
-     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 }

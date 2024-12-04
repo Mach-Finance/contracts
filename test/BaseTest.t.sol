@@ -16,6 +16,7 @@ import "../src/Oracles/IOracleSource.sol";
 interface IError {
     // Error thrown when an unauthorized account tries to call an Ownable function
     error OwnableUnauthorizedAccount(address account);
+    error SetProtocolSeizeShareOwnerCheck();
 }
 
 interface IEvents {

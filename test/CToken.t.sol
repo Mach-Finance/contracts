@@ -77,6 +77,16 @@ contract CTokenTest is BaseTest {
         cWbtcDelegator.mint(1.5 ether);
     }
 
+    function test_setProtocolSeizeShare() public {
+        vm.prank(admin);
+        cWbtcDelegator._setProtocolSeizeShare(0.5e18);
+        vm.assertEq(cWbtcDelegator.protocolSeizeShareMantissa(), 0.5e18);
+
+        vm.expectRevert(abi.encodeWithSelector(SetProtocolSeizeShareOwnerCheck.selector));
+        vm.prank(alice);
+        cWbtcDelegator._setProtocolSeizeShare(0.1e18);
+    }
+
     function test_interestRateAccrual() public {
         // Setup initial balances (enough to cover minting)
         uint256 wBTCInitialBalance = 100 * (10 ** wbtc.decimals());
