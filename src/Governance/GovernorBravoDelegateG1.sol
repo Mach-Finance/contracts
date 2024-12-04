@@ -1,4 +1,4 @@
-pragma solidity ^0.8.10;
+pragma solidity 0.8.22;
 pragma experimental ABIEncoderV2;
 
 import "./GovernorBravoInterfaces.sol";

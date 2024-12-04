@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-pragma solidity ^0.8.10;
+pragma solidity 0.8.22;
 
 import {BaseTest} from "./BaseTest.t.sol";
 import {PythOracle} from "../src/Oracles/PythOracle.sol";
@@ -11,6 +11,10 @@ import {MockERC20} from "./mocks/MockERC20.sol";
 import {CErc20Delegator} from "../src/CErc20Delegator.sol";
 import {PriceOracleAggregator} from "../src/Oracles/PriceOracleAggregator.sol";
 import {IOracleSource} from "../src/Oracles/IOracleSource.sol";
+import {MockPriceOracleAggregatorV2} from "./mocks/MockPriceOracleAggregatorV2.sol";
+
+// Helper functions for upgrading contracts from OpenZeppelin, works with Foundry
+import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 import "forge-std/console.sol";
 
@@ -103,7 +107,12 @@ contract OracleTest is BaseTest {
 
     function _deployPriceOracleAggregator() internal {
         vm.startPrank(admin);
-        priceOracleAggregator = new PriceOracleAggregator();
+
+        address priceOracleAggregatorProxyAddress = Upgrades.deployUUPSProxy(
+            "PriceOracleAggregator.sol",
+            abi.encodeCall(PriceOracleAggregator.initialize, (admin))
+        );
+        priceOracleAggregator = PriceOracleAggregator(payable(priceOracleAggregatorProxyAddress));
 
         IOracleSource[] memory oracles = new IOracleSource[](2);
         oracles[0] = pythOracle;
@@ -395,6 +404,25 @@ contract OracleTest is BaseTest {
         emit UnderlyingSymbolSet(NATIVE_ASSET, "ETH");
         bandOracle.setUnderlyingSymbol(NATIVE_ASSET, "ETH");
 
+        vm.stopPrank();
+    }
+
+    function test_priceOracleAggregator_upgrade() public {
+        address proxy = address(priceOracleAggregator);
+
+        address previousImplementation = Upgrades.getImplementationAddress(proxy);
+        address owner = priceOracleAggregator.owner();
+        vm.assertEq(owner, admin);
+
+        vm.startPrank(admin);
+        Upgrades.upgradeProxy(proxy, "MockPriceOracleAggregatorV2.sol", "", admin);
+
+        address newImplementation = Upgrades.getImplementationAddress(proxy);
+        vm.assertNotEq(previousImplementation, newImplementation);
+
+        // Invoke new function
+        MockPriceOracleAggregatorV2(proxy).setCounter(10);
+        vm.assertEq(MockPriceOracleAggregatorV2(proxy).getCounter(), 10);
         vm.stopPrank();
     }
 }

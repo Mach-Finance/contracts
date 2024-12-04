@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.10;
+pragma solidity 0.8.22;
 
 // Implementation of the standard reference interface for BAND.
 // https://github.com/bandprotocol/band-std-reference-contracts-solidity/blob/main/contracts/StdReferenceBasic.sol

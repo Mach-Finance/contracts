@@ -1,21 +1,33 @@
 // SPDX-License-Identifier: BSD-3-Clause
-pragma solidity ^0.8.10;
+pragma solidity 0.8.22;
 
 import {PriceOracle} from "../PriceOracle.sol";
 import {IOracleSource} from "./IOracleSource.sol";
 import {CErc20} from "../CErc20.sol";
 import {CToken} from "../CToken.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract PriceOracleAggregator is PriceOracle, Ownable {
+contract PriceOracleAggregator is PriceOracle, Initializable, Ownable2StepUpgradeable, UUPSUpgradeable {
     address public constant NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     /// @notice Emitted when the oracle list for a token is updated
     event TokenOraclesUpdated(address indexed token, IOracleSource[] newOracles);
 
+    // Mapping between underlying token and oracle sources
     mapping(address => IOracleSource[]) public tokenToOracleSources;
 
-    constructor() Ownable(msg.sender) {}
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address initialOwner) public initializer {
+        __Ownable_init(initialOwner);
+        __UUPSUpgradeable_init();
+    }
 
     /**
      * @notice Get the price of the underlying asset of a cToken
@@ -56,4 +68,6 @@ contract PriceOracleAggregator is PriceOracle, Ownable {
     function compareStrings(string memory a, string memory b) internal pure returns (bool) {
         return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
     }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 }
