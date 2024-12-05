@@ -55,7 +55,7 @@ contract OracleTest is BaseTest {
     BandOracle public bandOracle;
     PriceOracleAggregator public priceOracleAggregator;
 
-    bool isSonicTestnet = false;
+    bool isSonicTestnet = true;
 
     function setUp() public {
         sonicTestnetFork = vm.createFork(SONIC_TESTNET_RPC_URL, SONIC_TESTNET_FORK_BLOCK_NUMBER);
@@ -175,8 +175,8 @@ contract OracleTest is BaseTest {
         // Get price from oracle and verify it's in expected range
         // USDC should be ~$1, scaled to 36-decimals precision
         (uint256 price, bool isValid) = pythOracle.getPrice(address(usdc));
-        vm.assertGe(price, 10 ** (36 - decimals));
-        vm.assertLt(price, 10 ** (36 - decimals + 1));
+        vm.assertGe(price, (9 * 10 ** (36 - decimals)) / 10);
+        vm.assertLe(price, (11 * 10 ** (36 - decimals)) / 10);
         vm.assertTrue(isValid);
         console.log("price", price);
     }
