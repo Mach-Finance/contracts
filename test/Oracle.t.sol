@@ -178,7 +178,7 @@ contract OracleTest is BaseTest {
         // Price should be between $0.90 and $1.10 scaled to appropriate decimals
         vm.assertGe(price, (9 * 10 ** (PRICE_SCALE - decimals)) / 10); // Assert >= $0.90
         vm.assertLe(price, (11 * 10 ** (PRICE_SCALE - decimals)) / 10); // Assert <= $1.10
-        
+
         vm.assertTrue(isValid);
     }
 

@@ -93,8 +93,8 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
      * @param cToken The cToken to check
      * @return True if the account is in the asset, otherwise false.
      */
-    function checkMembership(address account, CToken cToken) external view returns (bool) {
-        return markets[address(cToken)].accountMembership[account];
+    function checkMembership(address account, address cToken) external view override returns (bool) {
+        return markets[cToken].accountMembership[account];
     }
 
     /**
@@ -113,6 +113,20 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
         }
 
         return results;
+    }
+
+    /**
+     * @notice Add assets to be included in account liquidity calculation
+     * @dev msg.sender MUST be whitelisted cToken for security
+     * @param cToken The cToken to be enabled as collateral for liquidity calculation
+     * @param account The account to enter the market for
+     * @return Success indicator for whether the market was entered
+     */
+    function enterMarketForCToken(address cToken, address account) external override returns (uint256) {
+        // msg.sender MUST be whitelisted cToken
+        require(msg.sender == cToken, "cToken passed is not same as msg.sender");
+        require(markets[cToken].isListed, "cToken is not listed");
+        return uint256(addToMarketInternal(CToken(cToken), account));
     }
 
     /**

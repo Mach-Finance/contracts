@@ -128,4 +128,6 @@ contract TokenErrorReporter {
 
     error SetProtocolSeizeShareOwnerCheck();
     error SetProtocolSeizeShareFreshCheck();
+
+    error EnterMarketComptrollerRejection(uint256 errorCode);
 }

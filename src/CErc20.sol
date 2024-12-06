@@ -56,6 +56,30 @@ contract CErc20 is CToken, CErc20Interface {
     }
 
     /**
+     * @notice Sender supplies assets into the market, enables it as collateral, and receives cTokens in exchange
+     * @dev Accrues interest whether or not the operation succeeds, unless reverted
+     * @param mintAmount The amount of the underlying asset to supply
+     * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
+     */
+    function mintAsCollateral(uint256 mintAmount) external returns (uint256) {
+        address cToken = address(this);
+
+        // Check if cToken is already used as collateral
+        bool isCollateral = comptroller.checkMembership(msg.sender, cToken);
+        mintInternal(mintAmount);
+
+        // If cToken is not used as collateral, enter market
+        if (!isCollateral) {
+            uint256 err = comptroller.enterMarketForCToken(cToken, msg.sender);
+            if (err != NO_ERROR) {
+                revert EnterMarketComptrollerRejection(err);
+            }
+        }
+
+        return NO_ERROR;
+    }
+
+    /**
      * @notice Sender redeems cTokens in exchange for the underlying asset
      * @dev Accrues interest whether or not the operation succeeds, unless reverted
      * @param redeemTokens The number of cTokens to redeem into underlying
