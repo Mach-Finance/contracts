@@ -17,6 +17,8 @@ import {BandOracle} from "../src/Oracles/BandOracle.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {PriceOracleAggregator} from "../src/Oracles/PriceOracleAggregator.sol";
 import {Maximillion} from "../src/Maximillion.sol";
+import {Unitroller} from "../src/Unitroller.sol";
+import {ComptrollerV1Storage} from "../src/ComptrollerStorage.sol";
 
 import "forge-std/console.sol";
 
@@ -35,7 +37,11 @@ contract DeployMachFi is Script {
     CSonic public cSonic;
     CErc20Delegator public cCoral;
     CErc20Delegate public cDelegate;
+
+    Comptroller public comptrollerImplementation;
     Comptroller public comptroller;
+    Unitroller public unitroller;
+
     JumpRateModelV2 public interestRateModel;
     ERC20 public coral = ERC20(CORAL);
     Maximillion public maximillion;
@@ -47,7 +53,6 @@ contract DeployMachFi is Script {
     function run() public {
         uint256 privateKey = vm.envUint("ADMIN_PRIVATE_KEY");
         vm.startBroadcast(privateKey);
-        deployBaselineContracts();
         vm.stopBroadcast();
     }
 
@@ -68,8 +73,18 @@ contract DeployMachFi is Script {
     }
 
     function deployComptroller() public {
-        comptroller = new Comptroller();
-        console.log("Comptroller deployed at", address(comptroller));
+        comptrollerImplementation = new Comptroller();
+        console.log("Comptroller deployed at", address(comptrollerImplementation));
+
+        unitroller = new Unitroller();
+        console.log("Unitroller deployed at", address(unitroller));
+
+        // Set pending comptroller implementation
+        unitroller._setPendingImplementation(address(comptrollerImplementation));
+
+        // Become comptroller
+        comptrollerImplementation._become(unitroller);
+        comptroller = Comptroller(payable(address(unitroller)));
     }
 
     function deployInterestRateModel() public {

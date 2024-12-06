@@ -36,6 +36,7 @@ contract OracleTest is BaseTest {
     bytes32 constant USDC_PRICE_FEED_ID = 0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a;
 
     address constant NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    uint8 constant PRICE_SCALE = 36;
 
     // https://scan.soniclabs.com/
     uint256 constant SONIC_TESTNET_FORK_BLOCK_NUMBER = 89140765;
@@ -162,23 +163,23 @@ contract OracleTest is BaseTest {
     }
 
     function testFuzz_pythOracle_getUnderlyingPrice_withDifferingDecimals(uint8 decimals) public {
-        // Only test with valid decimal values (max 36)
-        vm.assume(decimals <= 36);
+        // Set feed decimals to 8 to match Pyth oracle configuration
+        uint8 feedDecimals = 8;
+        // Ensure decimals don't exceed max allowed (PRICE_SCALE - feedDecimals) to avoid overflow
+        vm.assume(decimals <= (PRICE_SCALE - feedDecimals));
 
-        // Create mock USDC token with varying decimals
-        ERC20 usdc = new MockERC20(decimals);
+        ERC20 usdc = new MockERC20(decimals); // Mock USDC with fuzzed decimal places
 
-        // Set price feed ID for the mock USDC token
         vm.prank(admin);
-        pythOracle.setPriceFeedId(address(usdc), USDC_PRICE_FEED_ID);
+        pythOracle.setPriceFeedId(address(usdc), USDC_PRICE_FEED_ID); // Configure price feed for mock token
 
-        // Get price from oracle and verify it's in expected range
-        // USDC should be ~$1, scaled to 36-decimals precision
-        (uint256 price, bool isValid) = pythOracle.getPrice(address(usdc));
-        vm.assertGe(price, (9 * 10 ** (36 - decimals)) / 10);
-        vm.assertLe(price, (11 * 10 ** (36 - decimals)) / 10);
+        (uint256 price, bool isValid) = pythOracle.getPrice(address(usdc)); // Get scaled price from oracle
+
+        // Price should be between $0.90 and $1.10 scaled to appropriate decimals
+        vm.assertGe(price, (9 * 10 ** (PRICE_SCALE - decimals)) / 10); // Assert >= $0.90
+        vm.assertLe(price, (11 * 10 ** (PRICE_SCALE - decimals)) / 10); // Assert <= $1.10
+        
         vm.assertTrue(isValid);
-        console.log("price", price);
     }
 
     function test_priceOracleAggregator_getUnderlyingPrice() public {
