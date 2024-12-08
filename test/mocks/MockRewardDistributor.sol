@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 pragma solidity 0.8.22;
 
-import {RewardDistributor} from "../../src/Rewards/RewardDistributor.sol";
+import {IRewardDistributor} from "../../src/Rewards/IRewardDistributor.sol";
 import {CToken} from "../../src/CToken.sol";
 
-contract MockRewardDistributor is RewardDistributor {
+contract MockRewardDistributor is IRewardDistributor {
     uint256 public updateSupplyIndexCount;
     uint256 public updateBorrowIndexCount;
 

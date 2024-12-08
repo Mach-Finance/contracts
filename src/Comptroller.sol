@@ -7,7 +7,7 @@ import "./PriceOracle.sol";
 import "./ComptrollerInterface.sol";
 import "./ComptrollerStorage.sol";
 import "./Unitroller.sol";
-import "./Rewards/RewardDistributor.sol";
+import "./Rewards/IRewardDistributor.sol";
 import "./CErc20.sol";
 
 /**
@@ -58,7 +58,7 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
     event NewSupplyCapGuardian(address oldSupplyCapGuardian, address newSupplyCapGuardian);
 
     /// @notice Emitted when the reward distributor is changed
-    event NewRewardDistributor(RewardDistributor oldRewardDistributor, RewardDistributor newRewardDistributor);
+    event NewRewardDistributor(IRewardDistributor oldRewardDistributor, IRewardDistributor newRewardDistributor);
 
     // closeFactorMantissa must be strictly greater than this value
     uint256 internal constant closeFactorMinMantissa = 0.05e18; // 0.05
@@ -1121,10 +1121,10 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
         return uint256(Error.NO_ERROR);
     }
 
-    function _setRewardDistributor(RewardDistributor newRewardDistributor) public {
+    function _setRewardDistributor(IRewardDistributor newRewardDistributor) public {
         require(msg.sender == admin, "only admin can set reward distributor");
 
-        RewardDistributor oldRewardDistributor = rewardDistributor;
+        IRewardDistributor oldRewardDistributor = rewardDistributor;
         rewardDistributor = newRewardDistributor;
 
         emit NewRewardDistributor(oldRewardDistributor, newRewardDistributor);

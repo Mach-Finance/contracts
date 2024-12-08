@@ -3,7 +3,7 @@ pragma solidity 0.8.22;
 
 import "./CToken.sol";
 import "./PriceOracle.sol";
-import "./Rewards/RewardDistributor.sol";
+import "./Rewards/IRewardDistributor.sol";
 
 contract UnitrollerAdminStorage {
     /**
@@ -101,5 +101,5 @@ contract ComptrollerV2Storage is ComptrollerV1Storage {
     mapping(address => uint256) public supplyCaps;
 
     // @notice The reward distributor for the comptroller
-    RewardDistributor public rewardDistributor;
+    IRewardDistributor public rewardDistributor;
 }
