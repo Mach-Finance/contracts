@@ -264,7 +264,7 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
             } else {
                 nextTotalSupplies = add_(totalSupplies, mintAmount);
             }
-            
+
             require(nextTotalSupplies < supplyCap, "market supply cap reached");
         }
 
@@ -1275,7 +1275,6 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
             }
         }
     }
-
 
     function compareStrings(string memory a, string memory b) internal pure returns (bool) {
         return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));

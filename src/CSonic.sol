@@ -49,7 +49,7 @@ contract CSonic is CToken {
         mintInternal(msg.value);
     }
 
-     /**
+    /**
      * @notice Sender supplies assets into the market, enables it as collateral, and receives cTokens in exchange
      * @dev Accrues interest whether or not the operation succeeds, unless reverted
      * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)

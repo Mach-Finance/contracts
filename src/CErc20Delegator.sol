@@ -94,7 +94,6 @@ contract CErc20Delegator is CTokenInterface, CErc20Interface, CDelegatorInterfac
         return abi.decode(data, (uint256));
     }
 
-
     /**
      * @notice Sender supplies assets into the market, enables it as collateral and receives cTokens in exchange
      * @dev Accrues interest whether or not the operation succeeds, unless reverted

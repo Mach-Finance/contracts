@@ -428,14 +428,14 @@ contract CTokenTest is BaseTest {
         vm.startPrank(alice);
 
         // Check membership before minting
-        assertEq(comptroller.checkMembership(alice, address(cSonic)), false);  
+        assertEq(comptroller.checkMembership(alice, address(cSonic)), false);
         assertEq(comptroller.checkMembership(bob, address(cSonic)), false);
-        assertEq(comptroller.checkMembership(alice, address(cWbtcDelegator)), false);  
+        assertEq(comptroller.checkMembership(alice, address(cWbtcDelegator)), false);
         assertEq(comptroller.checkMembership(bob, address(cWbtcDelegator)), false);
 
         // $S price = ~$1
         deal(alice, 1e6 ether);
-        cSonic.mintAsCollateral{ value: 5e5 ether }();
+        cSonic.mintAsCollateral{value: 5e5 ether}();
 
         // Check that Alice is now a member of the Sonic market
         assertEq(comptroller.checkMembership(alice, address(cSonic)), true);
@@ -478,20 +478,20 @@ contract CTokenTest is BaseTest {
         vm.startPrank(bob);
         wbtc.approve(address(cWbtcDelegator), type(uint256).max);
         cWbtcDelegator.mintAsCollateral(bobWbtcMintAsCollateralAmount);
-        cSonic.mintAsCollateral{ value: bobSonicMintAsCollateralAmount }();
+        cSonic.mintAsCollateral{value: bobSonicMintAsCollateralAmount}();
         vm.stopPrank();
 
         vm.startPrank(alice);
         wbtc.approve(address(cWbtcDelegator), type(uint256).max);
         cWbtcDelegator.mintAsCollateral(aliceWbtcMintAsCollateralAmount);
-        cSonic.mint{ value: aliceSonicMintAmount }();
+        cSonic.mint{value: aliceSonicMintAmount}();
 
         // Check membership (before borrowing)
         assertEq(comptroller.checkMembership(bob, address(cWbtcDelegator)), true);
         assertEq(comptroller.checkMembership(bob, address(cSonic)), true);
         assertEq(comptroller.checkMembership(alice, address(cWbtcDelegator)), true);
         assertEq(comptroller.checkMembership(alice, address(cSonic)), false);
-        
+
         // Borrow Sonic + BTC
         cSonic.borrow(aliceSonicBorrowAmount);
         cWbtcDelegator.borrow(aliceWbtcBorrowAmount);
@@ -502,7 +502,7 @@ contract CTokenTest is BaseTest {
 
         // Alice mints as collateral again
         vm.prank(alice);
-        cSonic.mintAsCollateral{ value: 1e5 ether }();
+        cSonic.mintAsCollateral{value: 1e5 ether}();
 
         // Check membership (after minting as collateral)
         assertEq(comptroller.checkMembership(alice, address(cSonic)), true);
@@ -510,7 +510,7 @@ contract CTokenTest is BaseTest {
         // Check liquidity calculations
         uint256 wBtcPrice = priceOracle.getUnderlyingPrice(CToken(address(cWbtcDelegator)));
         uint256 sonicPrice = priceOracle.getUnderlyingPrice(CToken(address(cSonic)));
-        
+
         (uint256 err, uint256 liquidity, uint256 shortfall) = comptroller.getAccountLiquidity(alice);
         assertEq(err, 0);
         assertGt(liquidity, 0);
@@ -555,17 +555,17 @@ contract CTokenTest is BaseTest {
 
         // Check membership (after minting as collateral)
         assertEq(comptroller.checkMembership(alice, address(cSonic)), false);
-        assertEq(comptroller.checkMembership(alice, address(cWbtcDelegator)), true);     
+        assertEq(comptroller.checkMembership(alice, address(cWbtcDelegator)), true);
     }
 
     function test_mintAsCollateral_pausedMarket() public {
         vm.prank(admin);
         // Pause the market
         comptroller._setMintPaused(cSonic, true);
-        
+
         vm.startPrank(alice);
         deal(alice, 1 ether);
-        
+
         // Should fail when market is paused
         vm.expectRevert("mint is paused");
         cSonic.mintAsCollateral{value: 1 ether}();
@@ -574,7 +574,7 @@ contract CTokenTest is BaseTest {
 
     function test_mintAsCollateral_supplyCapReached() public {
         deal(alice, 1e6 ether);
-        
+
         vm.startPrank(admin);
         // Set a low supply cap
         CToken[] memory cTokens = new CToken[](1);
@@ -583,21 +583,20 @@ contract CTokenTest is BaseTest {
         supplyCaps[0] = 1 ether;
         comptroller._setMarketSupplyCaps(cTokens, supplyCaps);
         vm.stopPrank();
-        
+
         vm.startPrank(alice);
         deal(alice, 2 ether);
 
         // Get cash for cSonic
         uint256 cash = cSonic.getCash();
         console.log("cash", cash);
-        
+
         // First mint should succeed
         cSonic.mintAsCollateral{value: 0.5 ether}();
-        
+
         // Second mint should fail due to cap
         vm.expectRevert("market supply cap reached");
         cSonic.mintAsCollateral{value: 1 ether}();
         vm.stopPrank();
     }
-
 }

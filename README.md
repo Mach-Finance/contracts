@@ -1,17 +1,14 @@
-## Foundry
+# Mach Finance
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+Mach Finance is a fork of Compound Finance v2 with additional features such as supply caps and one click mint to use as collateral.
+The protocol will be deployed as a native application on the upcoming Sonic Network. 
 
-Foundry consists of:
-
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
-
-## Documentation
-
-https://book.getfoundry.sh/
+## What is different about Mach Finance?
+- **Supply Caps**: The protocol will have a maximum supply for each cToken.
+- **Mint and use asset as collateral**: Users will be able to mint cTokens and use them as collateral for borrowing in a single function call for better UX.
+- **block.timestamp vs block.number**: The protocol will use `block.timestamp` for all interest rate calculations, instead of `block.number`.
+- **Reward Distribution**: Instead of the `Comptroller` updating & distributing rewards, a separate contract `RewardDistributor` (WIP) will be responsible for distributing rewards.
+- **Price Oracle**: Via an Upgradable `PriceOracleAggregator.sol`, the protocol has a priority list of price feeds such as Pyth and Band to fetch price data.
 
 ## Usage
 
@@ -24,7 +21,7 @@ $ forge build
 ### Test
 
 ```shell
-$ forge test
+$ forge test --force
 ```
 
 ### Format
@@ -33,34 +30,8 @@ $ forge test
 $ forge fmt
 ```
 
-### Gas Snapshots
+### Deploy on SONIC Testnet
 
 ```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
+$ forge script ./script/DeployMachFi.s.sol --broadcast --rpc-url sonic_testnet --force 
 ```

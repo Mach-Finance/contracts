@@ -60,12 +60,20 @@ contract DeployMachFi is Script {
         deployComptroller();
         deployInterestRateModel();
         address[] memory cTokens = deployCTokens();
-        supportCTokens(cTokens);
         deployPriceOracles();
         deployMaximillion();
 
         comptroller._setPriceOracle(priceOracleAggregator);
 
+        // CAREFUL of "exchange rate" manipulation attacks on Compound v2 forks
+        // @dev - Before setting collateral factors -> https://x.com/hexagate_/status/1650177766187323394
+        // 0. Ensure collateral factor is 0
+        // 1. Mint some cTokens
+        // 2. Burn them to make sure total supply doesn't go to zero
+        // 3. Then set collateral factors
+        // @dev - Preferably do this in a single transaction (prevent front-running)
+        // https://github.com/SunWeb3Sec/DeFiHackLabs/blob/main/src/test/2023-04/HundredFinance_2_exp.sol
+        supportCTokens(cTokens);
         uint256[] memory collateralFactors = new uint256[](2);
         collateralFactors[0] = 0.8e18;
         collateralFactors[1] = 0.7e18;
