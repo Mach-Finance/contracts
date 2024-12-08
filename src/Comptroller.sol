@@ -8,6 +8,7 @@ import "./ComptrollerInterface.sol";
 import "./ComptrollerStorage.sol";
 import "./Unitroller.sol";
 import "./Rewards/RewardDistributor.sol";
+import "./CErc20.sol";
 
 /**
  * @title Mach's Comptroller Contract
@@ -67,6 +68,9 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
 
     // No collateralFactorMantissa may exceed this value
     uint256 internal constant collateralFactorMaxMantissa = 0.9e18; // 0.9
+
+    // Native asset for the chain (e.g. $S for SONIC)
+    address internal constant nativeAsset = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     constructor() {
         admin = msg.sender;
@@ -252,7 +256,15 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
             // totalSupplies = totalCash + totalBorrows - totalReserves
             uint256 totalSupplies = sub_(add_(totalCash, totalBorrows), totalReserves);
 
-            uint256 nextTotalSupplies = add_(totalSupplies, mintAmount);
+            uint256 nextTotalSupplies;
+
+            if (_getUnderlyingAddress(CToken(cToken)) == nativeAsset) {
+                // Don't add "mintAmount" since "cToken.getCashPrior()" already includes it (double counting issue)
+                nextTotalSupplies = totalSupplies;
+            } else {
+                nextTotalSupplies = add_(totalSupplies, mintAmount);
+            }
+            
             require(nextTotalSupplies < supplyCap, "market supply cap reached");
         }
 
@@ -1262,5 +1274,20 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
                 }
             }
         }
+    }
+
+
+    function compareStrings(string memory a, string memory b) internal pure returns (bool) {
+        return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
+    }
+
+    function _getUnderlyingAddress(CToken cToken) internal view returns (address) {
+        address asset;
+        if (compareStrings(cToken.symbol(), "cSonic")) {
+            asset = nativeAsset;
+        } else {
+            asset = address(CErc20(address(cToken)).underlying());
+        }
+        return asset;
     }
 }

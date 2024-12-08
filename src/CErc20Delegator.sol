@@ -94,6 +94,18 @@ contract CErc20Delegator is CTokenInterface, CErc20Interface, CDelegatorInterfac
         return abi.decode(data, (uint256));
     }
 
+
+    /**
+     * @notice Sender supplies assets into the market, enables it as collateral and receives cTokens in exchange
+     * @dev Accrues interest whether or not the operation succeeds, unless reverted
+     * @param mintAmount The amount of the underlying asset to supply
+     * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
+     */
+    function mintAsCollateral(uint256 mintAmount) external override returns (uint256) {
+        bytes memory data = delegateToImplementation(abi.encodeWithSignature("mintAsCollateral(uint256)", mintAmount));
+        return abi.decode(data, (uint256));
+    }
+
     /**
      * @notice Sender redeems cTokens in exchange for the underlying asset
      * @dev Accrues interest whether or not the operation succeeds, unless reverted
