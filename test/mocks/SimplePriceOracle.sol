@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 pragma solidity 0.8.22;
 
-import "../PriceOracle.sol";
-import "../CErc20.sol";
+import "../../src/PriceOracle.sol";
+import "../../src/CErc20.sol";
 
 contract SimplePriceOracle is PriceOracle {
     mapping(address => uint256) prices;

@@ -7,9 +7,9 @@ import "../src/ComptrollerInterface.sol";
 import "../src/InterestRateModel.sol";
 import "../src/Comptroller.sol";
 import "../src/JumpRateModelV2.sol";
-import "../src/Oracles/SimplePriceOracle.sol";
 import "./BaseTest.t.sol";
 import "./mocks/MockRewardDistributor.sol";
+import "./mocks/SimplePriceOracle.sol";
 
 contract CTokenTest is BaseTest {
     address public alice = makeAddr("alice");
