@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: BSD-3-Clause
-pragma solidity ^0.8.10;
+pragma solidity 0.8.22;
 
 import "./CToken.sol";
 
 /**
- * @title Compound's CEther Contract
- * @notice CToken which wraps Ether
- * @author Compound
+ * @title Mach's CSonic Contract
+ * @notice CToken which wraps Sonic
+ * @author Mach
  */
-contract CEther is CToken {
+contract CSonic is CToken {
     /**
-     * @notice Construct a new CEther money market
+     * @notice Construct a new CSonic money market
      * @param comptroller_ The address of the Comptroller
      * @param interestRateModel_ The address of the interest rate model
      * @param initialExchangeRateMantissa_ The initial exchange rate, scaled by 1e18
@@ -47,6 +47,29 @@ contract CEther is CToken {
      */
     function mint() external payable {
         mintInternal(msg.value);
+    }
+
+    /**
+     * @notice Sender supplies assets into the market, enables it as collateral, and receives cTokens in exchange
+     * @dev Accrues interest whether or not the operation succeeds, unless reverted
+     * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
+     */
+    function mintAsCollateral() external payable returns (uint256) {
+        address cToken = address(this);
+
+        // Check if cToken is already used as collateral
+        bool isCollateral = comptroller.checkMembership(msg.sender, cToken);
+        mintInternal(msg.value);
+
+        // If cToken is not used as collateral, enter market
+        if (!isCollateral) {
+            uint256 err = comptroller.enterMarketForCToken(cToken, msg.sender);
+            if (err != NO_ERROR) {
+                revert EnterMarketComptrollerRejection(err);
+            }
+        }
+
+        return NO_ERROR;
     }
 
     /**
@@ -118,7 +141,7 @@ contract CEther is CToken {
     }
 
     /**
-     * @notice Send Ether to CEther to mint
+     * @notice Send Sonic to CSonic to mint
      */
     receive() external payable {
         mintInternal(msg.value);
@@ -129,19 +152,30 @@ contract CEther is CToken {
      */
 
     /**
-     * @notice Gets balance of this contract in terms of Ether, before this message
+     * @notice Gets balance of this contract in terms of Sonic, before this message
      * @dev This excludes the value of the current message, if any
-     * @return The quantity of Ether owned by this contract
+     * @return The quantity of Sonic owned by this contract
      */
     function getCashPrior() internal view override returns (uint256) {
         return address(this).balance - msg.value;
     }
 
     /**
+     * @notice Admin function to sweep any ERC-20 token to the admin
+     * @param token The address of the ERC-20 token to sweep
+     */
+    function sweepToken(EIP20NonStandardInterface token) external {
+        require(msg.sender == admin, "CSonic::sweepToken: only admin can sweep tokens");
+        uint256 balance = token.balanceOf(address(this));
+        require(balance > 0, "CSonic::sweepToken: no balance to sweep");
+        token.transfer(admin, balance);
+    }
+
+    /**
      * @notice Perform the actual transfer in, which is a no-op
-     * @param from Address sending the Ether
-     * @param amount Amount of Ether being sent
-     * @return The actual amount of Ether transferred
+     * @param from Address sending the Sonic
+     * @param amount Amount of Sonic being sent
+     * @return The actual amount of Sonic transferred
      */
     function doTransferIn(address from, uint256 amount) internal override returns (uint256) {
         // Sanity checks
@@ -151,7 +185,7 @@ contract CEther is CToken {
     }
 
     function doTransferOut(address payable to, uint256 amount) internal virtual override {
-        /* Send the Ether, with minimal gas and revert on failure */
+        /* Send the Sonic, with minimal gas and revert on failure */
         to.transfer(amount);
     }
 }

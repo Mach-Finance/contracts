@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
-pragma solidity ^0.8.10;
+pragma solidity 0.8.22;
 
 import "./CTokenInterfaces.sol";
 
 /**
- * @title Compound's CErc20Delegator Contract
+ * @title Mach's CErc20Delegator Contract
  * @notice CTokens which wrap an EIP-20 underlying and delegate to an implementation
- * @author Compound
+ * @author Mach
  */
 contract CErc20Delegator is CTokenInterface, CErc20Interface, CDelegatorInterface {
     /**
@@ -91,6 +91,17 @@ contract CErc20Delegator is CTokenInterface, CErc20Interface, CDelegatorInterfac
      */
     function mint(uint256 mintAmount) external override returns (uint256) {
         bytes memory data = delegateToImplementation(abi.encodeWithSignature("mint(uint256)", mintAmount));
+        return abi.decode(data, (uint256));
+    }
+
+    /**
+     * @notice Sender supplies assets into the market, enables it as collateral and receives cTokens in exchange
+     * @dev Accrues interest whether or not the operation succeeds, unless reverted
+     * @param mintAmount The amount of the underlying asset to supply
+     * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
+     */
+    function mintAsCollateral(uint256 mintAmount) external override returns (uint256) {
+        bytes memory data = delegateToImplementation(abi.encodeWithSignature("mintAsCollateral(uint256)", mintAmount));
         return abi.decode(data, (uint256));
     }
 
@@ -252,20 +263,20 @@ contract CErc20Delegator is CTokenInterface, CErc20Interface, CDelegatorInterfac
     }
 
     /**
-     * @notice Returns the current per-block borrow interest rate for this cToken
-     * @return The borrow interest rate per block, scaled by 1e18
+     * @notice Returns the current per-timestamp borrow interest rate for this cToken
+     * @return The borrow interest rate per timestamp, scaled by 1e18
      */
-    function borrowRatePerBlock() external view override returns (uint256) {
-        bytes memory data = delegateToViewImplementation(abi.encodeWithSignature("borrowRatePerBlock()"));
+    function borrowRatePerTimestamp() external view override returns (uint256) {
+        bytes memory data = delegateToViewImplementation(abi.encodeWithSignature("borrowRatePerTimestamp()"));
         return abi.decode(data, (uint256));
     }
 
     /**
-     * @notice Returns the current per-block supply interest rate for this cToken
-     * @return The supply interest rate per block, scaled by 1e18
+     * @notice Returns the current per-timestamp supply interest rate for this cToken
+     * @return The supply interest rate per timestamp, scaled by 1e18
      */
-    function supplyRatePerBlock() external view override returns (uint256) {
-        bytes memory data = delegateToViewImplementation(abi.encodeWithSignature("supplyRatePerBlock()"));
+    function supplyRatePerTimestamp() external view override returns (uint256) {
+        bytes memory data = delegateToViewImplementation(abi.encodeWithSignature("supplyRatePerTimestamp()"));
         return abi.decode(data, (uint256));
     }
 
@@ -329,8 +340,8 @@ contract CErc20Delegator is CTokenInterface, CErc20Interface, CDelegatorInterfac
 
     /**
      * @notice Applies accrued interest to total borrows and reserves.
-     * @dev This calculates interest accrued from the last checkpointed block
-     *      up to the current block and writes new checkpoint to storage.
+     * @dev This calculates interest accrued from the last checkpointed timestamp
+     *      up to the current timestamp and writes new checkpoint to storage.
      */
     function accrueInterest() public override returns (uint256) {
         bytes memory data = delegateToImplementation(abi.encodeWithSignature("accrueInterest()"));
@@ -438,6 +449,18 @@ contract CErc20Delegator is CTokenInterface, CErc20Interface, CDelegatorInterfac
     function _setInterestRateModel(InterestRateModel newInterestRateModel) public override returns (uint256) {
         bytes memory data =
             delegateToImplementation(abi.encodeWithSignature("_setInterestRateModel(address)", newInterestRateModel));
+        return abi.decode(data, (uint256));
+    }
+
+    /**
+     * @notice accrues interest and sets a new protocol seize share for the protocol using _setProtocolSeizeShareFresh
+     * @dev Admin function to accrue interest and set a new protocol seize share
+     * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
+     */
+    function _setProtocolSeizeShare(uint256 newProtocolSeizeShareMantissa) external override returns (uint256) {
+        bytes memory data = delegateToImplementation(
+            abi.encodeWithSignature("_setProtocolSeizeShare(uint256)", newProtocolSeizeShareMantissa)
+        );
         return abi.decode(data, (uint256));
     }
 

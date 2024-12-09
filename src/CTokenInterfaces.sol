@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-pragma solidity ^0.8.10;
+pragma solidity 0.8.22;
 
 import "./ComptrollerInterface.sol";
 import "./InterestRateModel.sol";
@@ -27,7 +27,7 @@ contract CTokenStorage {
      */
     uint8 public decimals;
 
-    // Maximum borrow rate that can ever be applied (.0005% / block)
+    // Maximum borrow rate that can ever be applied (.0005% / timestamp)
     uint256 internal constant borrowRateMaxMantissa = 0.0005e16;
 
     // Maximum fraction of interest that can be set aside for reserves
@@ -62,9 +62,9 @@ contract CTokenStorage {
     uint256 public reserveFactorMantissa;
 
     /**
-     * @notice Block number that interest was last accrued at
+     * @notice Block timestamp that interest was last accrued at
      */
-    uint256 public accrualBlockNumber;
+    uint256 public accrualBlockTimestamp;
 
     /**
      * @notice Accumulator of the total earned interest rate since the opening of the market
@@ -108,7 +108,7 @@ contract CTokenStorage {
     /**
      * @notice Share of seized collateral that is added to reserves
      */
-    uint256 public constant protocolSeizeShareMantissa = 2.8e16; //2.8%
+    uint256 public protocolSeizeShareMantissa;
 }
 
 abstract contract CTokenInterface is CTokenStorage {
@@ -185,6 +185,11 @@ abstract contract CTokenInterface is CTokenStorage {
     event NewReserveFactor(uint256 oldReserveFactorMantissa, uint256 newReserveFactorMantissa);
 
     /**
+     * @notice Event emitted when the protocol seize share is changed
+     */
+    event NewProtocolSeizeShare(uint256 oldProtocolSeizeShareMantissa, uint256 newProtocolSeizeShareMantissa);
+
+    /**
      * @notice Event emitted when the reserves are added
      */
     event ReservesAdded(address benefactor, uint256 addAmount, uint256 newTotalReserves);
@@ -214,8 +219,8 @@ abstract contract CTokenInterface is CTokenStorage {
     function balanceOf(address owner) external view virtual returns (uint256);
     function balanceOfUnderlying(address owner) external virtual returns (uint256);
     function getAccountSnapshot(address account) external view virtual returns (uint256, uint256, uint256, uint256);
-    function borrowRatePerBlock() external view virtual returns (uint256);
-    function supplyRatePerBlock() external view virtual returns (uint256);
+    function borrowRatePerTimestamp() external view virtual returns (uint256);
+    function supplyRatePerTimestamp() external view virtual returns (uint256);
     function totalBorrowsCurrent() external virtual returns (uint256);
     function borrowBalanceCurrent(address account) external virtual returns (uint256);
     function borrowBalanceStored(address account) external view virtual returns (uint256);
@@ -234,6 +239,7 @@ abstract contract CTokenInterface is CTokenStorage {
     function _setReserveFactor(uint256 newReserveFactorMantissa) external virtual returns (uint256);
     function _reduceReserves(uint256 reduceAmount) external virtual returns (uint256);
     function _setInterestRateModel(InterestRateModel newInterestRateModel) external virtual returns (uint256);
+    function _setProtocolSeizeShare(uint256 newProtocolSeizeShareMantissa) external virtual returns (uint256);
 }
 
 contract CErc20Storage {
@@ -248,6 +254,7 @@ abstract contract CErc20Interface is CErc20Storage {
      * User Interface **
      */
     function mint(uint256 mintAmount) external virtual returns (uint256);
+    function mintAsCollateral(uint256 mintAmount) external virtual returns (uint256);
     function redeem(uint256 redeemTokens) external virtual returns (uint256);
     function redeemUnderlying(uint256 redeemAmount) external virtual returns (uint256);
     function borrow(uint256 borrowAmount) external virtual returns (uint256);

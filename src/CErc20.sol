@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-pragma solidity ^0.8.10;
+pragma solidity 0.8.22;
 
 import "./CToken.sol";
 
@@ -8,9 +8,9 @@ interface CompLike {
 }
 
 /**
- * @title Compound's CErc20 Contract
+ * @title Mach's CErc20 Contract
  * @notice CTokens which wrap an EIP-20 underlying
- * @author Compound
+ * @author Mach
  */
 contract CErc20 is CToken, CErc20Interface {
     /**
@@ -52,6 +52,30 @@ contract CErc20 is CToken, CErc20Interface {
      */
     function mint(uint256 mintAmount) external override returns (uint256) {
         mintInternal(mintAmount);
+        return NO_ERROR;
+    }
+
+    /**
+     * @notice Sender supplies assets into the market, enables it as collateral and receives cTokens in exchange
+     * @dev Accrues interest whether or not the operation succeeds, unless reverted
+     * @param mintAmount The amount of the underlying asset to supply
+     * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
+     */
+    function mintAsCollateral(uint256 mintAmount) external override returns (uint256) {
+        address cToken = address(this);
+
+        // Check if cToken is already used as collateral
+        bool isCollateral = comptroller.checkMembership(msg.sender, cToken);
+        mintInternal(mintAmount);
+
+        // If cToken is not used as collateral, enter market
+        if (!isCollateral) {
+            uint256 err = comptroller.enterMarketForCToken(cToken, msg.sender);
+            if (err != NO_ERROR) {
+                revert EnterMarketComptrollerRejection(err);
+            }
+        }
+
         return NO_ERROR;
     }
 
@@ -134,6 +158,19 @@ contract CErc20 is CToken, CErc20Interface {
         require(address(token) != underlying, "CErc20::sweepToken: can not sweep underlying token");
         uint256 balance = token.balanceOf(address(this));
         token.transfer(admin, balance);
+    }
+
+    /**
+     * @notice Admin function to sweep any SONIC in the contract
+     * @dev Only the admin can sweep the SONIC
+     */
+    function sweepNative() external {
+        require(msg.sender == admin, "CErc20::sweepSonic: only admin can sweep sonic");
+        uint256 balance = address(this).balance;
+        require(balance > 0, "CErc20::sweepSonic: no balance to sweep");
+
+        (bool sent,) = payable(admin).call{value: balance}("");
+        require(sent, "CErc20::sweepSonic: failed to send ether");
     }
 
     /**

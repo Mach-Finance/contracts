@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
-pragma solidity ^0.8.10;
+pragma solidity 0.8.22;
 
 import "./CErc20.sol";
 
 /**
- * @title Compound's CErc20Immutable Contract
+ * @title Mach's CErc20Immutable Contract
  * @notice CTokens which wrap an EIP-20 underlying and are immutable
- * @author Compound
+ * @author Mach
  */
 contract CErc20Immutable is CErc20 {
     /**

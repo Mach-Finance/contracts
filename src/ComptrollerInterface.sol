@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-pragma solidity ^0.8.10;
+pragma solidity 0.8.22;
 
 abstract contract ComptrollerInterface {
     /// @notice Indicator that this is a Comptroller contract (for inspection)
@@ -10,6 +10,8 @@ abstract contract ComptrollerInterface {
      */
     function enterMarkets(address[] calldata cTokens) external virtual returns (uint256[] memory);
     function exitMarket(address cToken) external virtual returns (uint256);
+    function checkMembership(address account, address cToken) external view virtual returns (bool);
+    function enterMarketForCToken(address cToken, address account) external virtual returns (uint256);
 
     /**
      * Policy Hooks **

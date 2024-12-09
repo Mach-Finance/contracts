@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-pragma solidity ^0.8.10;
+pragma solidity 0.8.22;
 
 contract ComptrollerErrorReporter {
     enum Error {
@@ -125,4 +125,9 @@ contract TokenErrorReporter {
 
     error SetInterestRateModelOwnerCheck();
     error SetInterestRateModelFreshCheck();
+
+    error SetProtocolSeizeShareOwnerCheck();
+    error SetProtocolSeizeShareFreshCheck();
+
+    error EnterMarketComptrollerRejection(uint256 errorCode);
 }
