@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: BSD-3-Clause
 pragma solidity 0.8.22;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {IStdReference} from "./IStdReference.sol";
-import {PriceOracle} from "../PriceOracle.sol";
-import {CErc20} from "../CErc20.sol";
-import {CToken} from "../CToken.sol";
-import {IOracleSource} from "./IOracleSource.sol";
+import {IStdReference} from "../Band/IStdReference.sol";
+import {PriceOracle} from "../../PriceOracle.sol";
+import {CErc20} from "../../CErc20.sol";
+import {CToken} from "../../CToken.sol";
+import {IOracleSource} from "../IOracleSource.sol";
 
-contract BandOracle is IOracleSource, Ownable {
+contract BandOracle is IOracleSource, Ownable2Step {
     uint256 public constant PRICE_SCALE = 36;
     uint256 public constant BAND_SCALE_FACTOR = 18;
     uint256 public constant NATIVE_DECIMALS = 18;
@@ -27,9 +27,12 @@ contract BandOracle is IOracleSource, Ownable {
     /// @notice Quote symbol we used for BAND reference contract
     string public constant QUOTE_SYMBOL = "USD";
 
-    constructor(address _bandReference, address[] memory _underlyingTokens, string[] memory _bandSymbols)
-        Ownable(msg.sender)
-    {
+    constructor(
+        address _owner,
+        address _bandReference,
+        address[] memory _underlyingTokens,
+        string[] memory _bandSymbols
+    ) Ownable(_owner) {
         require(_underlyingTokens.length == _bandSymbols.length, "BandOracle: Length mismatch");
 
         bandReference = IStdReference(_bandReference);
@@ -94,6 +97,9 @@ contract BandOracle is IOracleSource, Ownable {
 
     /// Owner functions
     function _setUnderlyingSymbol(address token, string memory symbol) internal {
+        require(bytes(symbol).length > 0, "BandOracle: Symbol cannot be empty");
+        // Attempt to check if the symbol is valid, ignore return value, should revert if invalid
+        bandReference.getReferenceData(symbol, QUOTE_SYMBOL);
         tokenToBandSymbol[token] = symbol;
         emit UnderlyingSymbolSet(token, symbol);
     }

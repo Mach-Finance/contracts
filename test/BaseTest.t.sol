@@ -24,15 +24,18 @@ interface IEvents {
     event TokenOraclesUpdated(address indexed token, IOracleSource[] newOracles);
     event UnderlyingSymbolSet(address indexed token, string symbol);
     event UnderlyingTokenPriceFeedSet(address indexed token, bytes32 priceFeedId);
+    event UnderlyingTokenApi3ProxyAddressSet(address indexed token, address api3ProxyAddress);
 }
 
 contract BaseTest is Test, IError, IEvents {
     CSonic public cSonic;
     CErc20Delegator public cWbtcDelegator;
+    CErc20Delegator public cUsdcDelegator;
     CErc20Delegate public cErc20Delegate;
     Comptroller public comptroller;
     JumpRateModelV2 public interestRateModel;
     ERC20Mock public wbtc;
+    ERC20Mock public usdc;
 
     uint256 internal baseRatePerYear = 0;
     uint256 internal multiplierPerYear = 0.25e18;
@@ -48,6 +51,7 @@ contract BaseTest is Test, IError, IEvents {
         comptroller = new Comptroller();
         interestRateModel = new JumpRateModelV2(baseRatePerYear, multiplierPerYear, jumpMultiplierPerYear, kink_, admin);
         wbtc = new MockERC20(8);
+        usdc = new MockERC20(6);
         cErc20Delegate = new CErc20Delegate();
         cWbtcDelegator = new CErc20Delegator(
             address(wbtc), // underlying
@@ -61,12 +65,25 @@ contract BaseTest is Test, IError, IEvents {
             address(cErc20Delegate), // implementation
             "" // becomeImplementationData
         );
+        cUsdcDelegator = new CErc20Delegator(
+            address(usdc), // underlying
+            comptroller, // comptroller
+            interestRateModel, // interestRateModel
+            1e18, // initialExchangeRateMantissa
+            "Compound USDC", // name
+            "cUSDC", // symbol
+            8, // decimals
+            payable(admin), // admin
+            address(cErc20Delegate), // implementation
+            "" // becomeImplementationData
+        );
         cSonic = new CSonic(comptroller, interestRateModel, 1e18, "Sonic", "cSonic", 18, payable(admin));
 
         vm.assertEq(wbtc.decimals(), 8);
+        vm.assertEq(usdc.decimals(), 6);
 
         comptroller._supportMarket(CToken(address(cWbtcDelegator)));
-        comptroller._supportMarket(cSonic);
+        comptroller._supportMarket(CToken(address(cSonic)));
         vm.stopPrank();
     }
 }

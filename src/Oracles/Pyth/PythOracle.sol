@@ -4,14 +4,14 @@ pragma solidity 0.8.22;
 import {IPyth} from "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
 import {PythStructs} from "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
-import {CToken} from "../CToken.sol";
-import {CErc20} from "../CErc20.sol";
-import {PriceOracle} from "../PriceOracle.sol";
-import {IOracleSource} from "./IOracleSource.sol";
+import {CToken} from "../../CToken.sol";
+import {CErc20} from "../../CErc20.sol";
+import {PriceOracle} from "../../PriceOracle.sol";
+import {IOracleSource} from "../IOracleSource.sol";
 
-contract PythOracle is IOracleSource, Ownable {
+contract PythOracle is IOracleSource, Ownable2Step {
     uint256 public constant PRICE_SCALE = 36;
     uint256 public constant NATIVE_DECIMALS = 18;
     address public constant NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -22,8 +22,8 @@ contract PythOracle is IOracleSource, Ownable {
 
     mapping(address => bytes32) public priceFeedIds;
 
-    constructor(address _pyth, address[] memory _underlyingTokens, bytes32[] memory _priceFeedIds)
-        Ownable(msg.sender)
+    constructor(address _owner, address _pyth, address[] memory _underlyingTokens, bytes32[] memory _priceFeedIds)
+        Ownable(_owner)
     {
         require(
             _underlyingTokens.length == _priceFeedIds.length, "PythOracle: Lengths of tokens and price feed must match"
@@ -37,6 +37,10 @@ contract PythOracle is IOracleSource, Ownable {
     }
 
     function _setPriceFeedId(address underlyingToken, bytes32 priceFeedId) internal {
+        require(priceFeedId != bytes32(0), "PythOracle: Price feed id cannot be zero");
+        // Attempt to check if the Pyth price feed is valid, ignore return value, should revert if invalid
+        pyth.getPriceUnsafe(priceFeedId);
+
         priceFeedIds[underlyingToken] = priceFeedId;
         emit UnderlyingTokenPriceFeedSet(underlyingToken, priceFeedId);
     }
@@ -49,6 +53,10 @@ contract PythOracle is IOracleSource, Ownable {
         external
         onlyOwner
     {
+        require(
+            _underlyingTokens.length == _priceFeedIds.length, "PythOracle: Lengths of tokens and price feed must match"
+        );
+
         for (uint256 i = 0; i < _underlyingTokens.length; i++) {
             _setPriceFeedId(_underlyingTokens[i], _priceFeedIds[i]);
         }
