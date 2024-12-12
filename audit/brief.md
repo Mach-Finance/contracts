@@ -2,7 +2,7 @@
 
 Mach Finance is a Compound v2 fork with few changes highlighted here:
 1. Supply caps for `cToken`
-2. Upgradeable Price Oracle Aggregator that consists of Pyth & Band oracles
+2. Upgradeable Price Oracle Aggregator that consists of Pyth & API3 oracles
 3. `block.timestamp` instead of `block.number` when modelling interest rates
 4. Extract out accrual & distribution that was previously in `Comptroller` to external `Distributor` contract
 5. `mintAsCollateral` function that mints & enables the asset as collateral
@@ -49,7 +49,7 @@ Mach Finance [Code Changes]
 # Specification for added features
 
 ## Price Oracle
-In the beginning we plan to list *safe* assets that are supported by **Pyth** + **Band** Oracles.
+In the beginning we plan to list *safe* assets that are supported by **Pyth** + **API3** Oracles.
 The price feed used for the wrapped / bridged assets is the price feed of the underlying asset.
 These assets include, which will be retrieved from the respective price feeds
 - $USDC (Wormhole / LayerZero)
