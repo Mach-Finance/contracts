@@ -37,9 +37,10 @@ Mach Finance is a Compound v2 fork with few changes highlighted here:
 This PR serves the implementation differences between Mach Finance and Compound v2 
 
 Compound v2 (forked from commit) -> a3214f67b73310d547e00fc578e8355911c9d376
-Mach Finance [Changes]
+Mach Finance [Code Changes]
 - https://github.com/Mach-Finance/contracts/pull/1 
 - https://github.com/Mach-Finance/contracts/pull/3 
+- https://github.com/Mach-Finance/contracts/pull/5
 
 `forge fmt` was run against Compound v2 
 - https://github.com/Mach-Finance/contracts/pull/2
