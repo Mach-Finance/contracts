@@ -5,7 +5,6 @@ import {PriceOracle} from "../PriceOracle.sol";
 import {IOracleSource} from "./IOracleSource.sol";
 import {CErc20} from "../CErc20.sol";
 import {CToken} from "../CToken.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";

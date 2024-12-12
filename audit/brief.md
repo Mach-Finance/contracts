@@ -8,7 +8,10 @@ Mach Finance is a Compound v2 fork with few changes highlighted here:
 5. `mintAsCollateral` function that mints & enables the asset as collateral
 
 # Files to review
-- `src/Oracles/*.sol`
+- `src/Oracles/API3/*.sol`
+- `src/Oracles/Pyth/*.sol`
+- `src/Oracles/IOracleSource.sol`
+- `src/Oracles/PriceOracleAggregator.sol`
 - `src/Rewards/IRewardDistributor.sol`
 - `src/**/BaseJumpRateModelV2.sol`
 - `src/BaseJumpRateModelV2.sol`
@@ -63,18 +66,21 @@ For the next phase of audits, we plan to list other assets such as:
 
 These assets will be retrieved from the respective price feeds, that most likely depend on custom price feed implementations from different liquidity pools.
 
-`PriceOracleAggregator.sol` is an upgradeable contract that has a list of oracles for each token. There is a priority list of oracles that are used to get the price of the token. The first oracle that returns a price is used as the price feed. Admin can add, remove and re-order the priority list of oracles. 
+`PriceOracleAggregator.sol` is an upgradeable contract that has a list of oracles for each token. There is a priority list of oracles that are used to get the price of the token. The first oracle that returns a price is used as the price feed. Admin can add, remove and re-order the priority list of oracles. If the price feed is invalid for particular provider, the next provider will be used. 
 
 The priority list is (highest priority first):
 1. Pyth
-2. Band
+2. API3
 
-### Oracle Sources
-- Pyth: `src/Oracles/PythOracle.sol`
-    - It is used to get the price of the token in USD from the Pyth price feed available on Sonic chain. The oracle is intended to be compatible with Compound v2 Comptroller liquidity calculations. 
+### Oracle Sources 
+- Pyth: `src/Oracles/Pyth/PythOracle.sol` - 
+    - https://api-reference.pyth.network/price-feeds/evm/getPriceUnsafe
+    - The team will select the price feed id for each token, and set it in the `PriceOracleAggregator.sol` contract
 
-- Band: `src/Oracles/BandOracle.sol`
-    - It is used to get the price of the token in USD from the Band price feed available on Sonic chain. The oracle is intended to be compatible with Compound v2 Comptroller liquidity calculations. 
+- API3: `src/Oracles/API3/API3Oracle.sol` - 
+    - https://docs.api3.org/dapps/integration/contract-integration.html
+    - The team will select the API3 proxy address for each token, and set it in the `PriceOracleAggregator.sol` contract
+    - As per the API3 docs, the team will purchase the plan to let API3 update the price every 0.25% movement in price. 
 
 ## Supply Caps
 Similar to Compound v2's borrow cap, we have supply caps for each `cToken`. 

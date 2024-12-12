@@ -12,8 +12,9 @@ import {Comptroller} from "../src/Comptroller.sol";
 import {JumpRateModelV2} from "../src/JumpRateModelV2.sol";
 import {IOracleSource} from "../src/Oracles/IOracleSource.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {PythOracle} from "../src/Oracles/PythOracle.sol";
-import {BandOracle} from "../src/Oracles/BandOracle.sol";
+import {PythOracle} from "../src/Oracles/Pyth/PythOracle.sol";
+import {BandOracle} from "../src/Oracles/Band/BandOracle.sol";
+import {API3Oracle} from "../src/Oracles/API3/API3Oracle.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {PriceOracleAggregator} from "../src/Oracles/PriceOracleAggregator.sol";
 import {Maximillion} from "../src/Maximillion.sol";
@@ -34,6 +35,11 @@ contract DeployMachFi is Script {
     address public constant PYTH_ORACLE_ADDRESS = 0x96124d1F6E44FfDf1fb5D6d74BB2DE1B7Fbe7376;
     address public constant BAND_ORACLE_ADDRESS = 0x1744a64d95059e5281Ee573BF1C26813811d9BD3;
 
+    address constant SONIC_BLAZE_TESTNET_API3_FTM_PROXY = 0x8927DA1377C78D25E78c335F48a6f8e42Cce0C09;
+    address constant SONIC_BLAZE_TESTNET_API3_WBTC_PROXY = 0x041a131Fa91Ad61dD85262A42c04975986580d50;
+    address constant SONIC_BLAZE_TESTNET_API3_USDC_PROXY = 0xD3C586Eec1C6C3eC41D276a23944dea080eDCf7f;
+    address constant SONIC_BLAZE_TESTNET_API3_SOLV_PROXY = 0xadf6e9419E483Cc214dfC9EF1887f3aa7e85cA09;
+
     CSonic public cSonic;
     CErc20Delegator public cCoral;
     CErc20Delegate public cDelegate;
@@ -48,10 +54,15 @@ contract DeployMachFi is Script {
 
     PythOracle public pythOracle;
     BandOracle public bandOracle;
+    API3Oracle public api3Oracle;
     PriceOracleAggregator public priceOracleAggregator;
+
+    // @notice - Admin address for the deployment
+    address public admin;
 
     function run() public {
         uint256 privateKey = vm.envUint("ADMIN_PRIVATE_KEY");
+        admin = vm.addr(privateKey);
         vm.startBroadcast(privateKey);
         vm.stopBroadcast();
     }
@@ -139,6 +150,7 @@ contract DeployMachFi is Script {
     function deployPriceOracles() public returns (PriceOracleAggregator) {
         _deployBandOracle();
         _deployPythOracle();
+        _deployAPI3Oracle();
 
         address priceOracleAggregatorProxyAddress = Upgrades.deployUUPSProxy(
             "PriceOracleAggregator.sol", abi.encodeCall(PriceOracleAggregator.initialize, (ADMIN))
@@ -147,7 +159,7 @@ contract DeployMachFi is Script {
 
         IOracleSource[] memory oracles = new IOracleSource[](2);
         oracles[0] = pythOracle;
-        oracles[1] = bandOracle;
+        oracles[1] = api3Oracle;
 
         priceOracleAggregator.updateTokenOracles(address(coral), oracles);
         priceOracleAggregator.updateTokenOracles(NATIVE_ASSET, oracles);
@@ -165,7 +177,7 @@ contract DeployMachFi is Script {
         bandSymbols[0] = "BTC";
         bandSymbols[1] = "FTM";
 
-        bandOracle = new BandOracle(BAND_ORACLE_ADDRESS, underlyingTokens, bandSymbols);
+        bandOracle = new BandOracle(admin, BAND_ORACLE_ADDRESS, underlyingTokens, bandSymbols);
         console.log("BandOracle deployed at", address(bandOracle));
     }
 
@@ -178,7 +190,20 @@ contract DeployMachFi is Script {
         priceFeedIds[0] = BTC_PRICE_FEED_ID;
         priceFeedIds[1] = FTM_PRICE_FEED_ID;
 
-        pythOracle = new PythOracle(PYTH_ORACLE_ADDRESS, underlyingTokens, priceFeedIds);
+        pythOracle = new PythOracle(admin, PYTH_ORACLE_ADDRESS, underlyingTokens, priceFeedIds);
+    }
+
+    function _deployAPI3Oracle() internal {
+        address[] memory underlyingTokens = new address[](2);
+        underlyingTokens[0] = address(coral);
+        underlyingTokens[1] = NATIVE_ASSET;
+
+        address[] memory api3ProxyAddresses = new address[](2);
+        api3ProxyAddresses[0] = SONIC_BLAZE_TESTNET_API3_WBTC_PROXY;
+        api3ProxyAddresses[1] = SONIC_BLAZE_TESTNET_API3_FTM_PROXY;
+
+        api3Oracle = new API3Oracle(admin, underlyingTokens, api3ProxyAddresses);
+        console.log("API3Oracle deployed at", address(api3Oracle));
     }
 
     function setCollateralFactors(address[] memory cTokens, uint256[] memory collateralFactors) public {
