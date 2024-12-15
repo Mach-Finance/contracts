@@ -6,6 +6,9 @@ Mach Finance is a Compound v2 fork with few changes highlighted here:
 3. `block.timestamp` instead of `block.number` when modelling interest rates
 4. Extract out accrual & distribution that was previously in `Comptroller` to external `Distributor` contract
 5. `mintAsCollateral` function that mints & enables the asset as collateral
+6. Make `protocolSeizeShare` modifiable by admin
+7. `sweepToken` function that only allows admin to sweep any ERC-20 tokens from cSonic contract
+8. `sweepNative` function that only allows admin to sweep any native assets from cErc20 contract
 
 # Files to review
 - `src/Oracles/API3/*.sol`
@@ -132,3 +135,15 @@ Case 3:
 - 200 USDC in liquidity calculations as collateral
 
 Check possible front-running attacks on `mintAsCollateral`, what are the possible implications?
+
+## `protocolSeizeShare` is a modifiable variable by the admin
+
+`protocolSeizeShare` is a function that allows the admin to set the percentage of the protocol's share of the seized collateral.
+
+## `sweepToken` function that only allows admin to sweep any ERC-20 tokens from cSonic contract to admin address
+
+Ensure ERC20 tokens are not stuck in the `cSonic` contract. 
+
+## `sweepNative` function that only allows admin to sweep any native assets from cErc20 contract to admin address
+
+Ensure $S is not stuck in the respective `cErc20` contract.
