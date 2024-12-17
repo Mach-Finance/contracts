@@ -16,12 +16,10 @@ Mach Finance is a Compound v2 fork with few changes highlighted here:
 - `src/Oracles/IOracleSource.sol`
 - `src/Oracles/PriceOracleAggregator.sol`
 - `src/Rewards/IRewardDistributor.sol`
-- `src/**/BaseJumpRateModelV2.sol`
 - `src/BaseJumpRateModelV2.sol`
 - `src/CErc20.sol`
 - `src/CErc20Delegate.sol`
 - `src/CErc20Delegator.sol`
-- `src/CErc20Immutable.sol`
 - `src/Comptroller.sol`
 - `src/ComptrollerInterface.sol`
 - `src/ComptrollerStorage.sol`
@@ -34,6 +32,7 @@ Mach Finance is a Compound v2 fork with few changes highlighted here:
 - `src/JumpRateModelV2.sol`
 - `src/Maximillion.sol`
 - `src/Unitroller.sol`
+- `src/PriceOracle.sol`
 
 
 # Difference with Compound v2
