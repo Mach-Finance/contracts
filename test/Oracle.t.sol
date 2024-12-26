@@ -15,6 +15,7 @@ import {MockPriceOracleAggregatorV2} from "./mocks/MockPriceOracleAggregatorV2.s
 import {API3Oracle} from "../src/Oracles/API3/API3Oracle.sol";
 import {IApi3ReaderProxy} from "@api3/contracts/interfaces/IApi3ReaderProxy.sol";
 import {IStdReference} from "../src/Oracles/Band/IStdReference.sol";
+import {IPyth} from "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
 
 // Helper functions for upgrading contracts from OpenZeppelin, works with Foundry
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
@@ -26,6 +27,7 @@ contract OracleTest is BaseTest {
     address constant SONIC_BLAZE_TESTNET_API3_WBTC_PROXY = 0x041a131Fa91Ad61dD85262A42c04975986580d50;
     address constant SONIC_BLAZE_TESTNET_API3_USDC_PROXY = 0xD3C586Eec1C6C3eC41D276a23944dea080eDCf7f;
     address constant SONIC_BLAZE_TESTNET_API3_SOLV_PROXY = 0xadf6e9419E483Cc214dfC9EF1887f3aa7e85cA09;
+    address constant SONIC_BLAZE_TESTNET_API3_ETH_PROXY = 0x5b0cf2b36a65a6BB085D501B971e4c102B9Cd473;
 
     address constant SONIC_BLAZE_TESTNET_PYTH_ORACLE = 0x2880aB155794e7179c9eE2e38200202908C17B43;
     address constant SONIC_BLAZE_TESTNET_BAND_ORACLE = 0x8c064bCf7C0DA3B3b090BAbFE8f3323534D84d68;
@@ -41,12 +43,20 @@ contract OracleTest is BaseTest {
     address constant NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     uint8 constant PRICE_SCALE = 36;
 
-    // https://testnet.soniclabs.com/
-    uint256 constant SONIC_BLAZE_TESTNET_FORK_BLOCK_NUMBER = 3491026;
+    // Set block.number to the time of the PythPriceFeedData.txt feed update (25 December 2024 16:03:48 UTC) - Merry Christmas!
+    uint256 constant SONIC_BLAZE_TESTNET_FORK_BLOCK_NUMBER = 6925940;
+    uint256 constant SONIC_BLAZE_TESTNET_FORK_BLOCK_TIMESTAMP = 1735142628;
+    uint256 constant PYTH_STALE_PRICE_THRESHOLD = 4 hours;
+    uint256 constant API3_STALE_PRICE_THRESHOLD = 24 hours;
+
     string SONIC_BLAZE_TESTNET_RPC_URL = vm.envString("SONIC_BLAZE_TESTNET_RPC_URL");
+
+    bytes[] pythPriceUpdate;
 
     /// Dynamic variables
     address pythOracleAddress;
+    IPyth pyth;
+
     address bandOracleAddress;
 
     // Fork chain variables
@@ -61,7 +71,9 @@ contract OracleTest is BaseTest {
         sonicBlazeTestnetFork = vm.createFork(SONIC_BLAZE_TESTNET_RPC_URL, SONIC_BLAZE_TESTNET_FORK_BLOCK_NUMBER);
 
         vm.selectFork(sonicBlazeTestnetFork);
+        vm.warp(SONIC_BLAZE_TESTNET_FORK_BLOCK_TIMESTAMP);
         pythOracleAddress = SONIC_BLAZE_TESTNET_PYTH_ORACLE;
+        pyth = IPyth(pythOracleAddress);
         bandOracleAddress = SONIC_BLAZE_TESTNET_BAND_ORACLE;
 
         vm.label(SONIC_BLAZE_TESTNET_PYTH_ORACLE, "SONIC_BLAZE_TESTNET_PYTH_ORACLE");
@@ -70,6 +82,7 @@ contract OracleTest is BaseTest {
         vm.label(SONIC_BLAZE_TESTNET_API3_WBTC_PROXY, "SONIC_BLAZE_TESTNET_API3_WBTC_PROXY");
         vm.label(SONIC_BLAZE_TESTNET_API3_USDC_PROXY, "SONIC_BLAZE_TESTNET_API3_USDC_PROXY");
         vm.label(SONIC_BLAZE_TESTNET_API3_SOLV_PROXY, "SONIC_BLAZE_TESTNET_API3_SOLV_PROXY");
+        vm.label(SONIC_BLAZE_TESTNET_API3_ETH_PROXY, "SONIC_BLAZE_TESTNET_API3_ETH_PROXY");
 
         _deployBaselineContracts();
         _deployPythOracle();
@@ -80,18 +93,42 @@ contract OracleTest is BaseTest {
 
     function _deployPythOracle() internal {
         vm.startPrank(admin);
-        address[] memory underlyingTokens = new address[](3);
+        address[] memory underlyingTokens = new address[](4);
         underlyingTokens[0] = address(wbtc);
         underlyingTokens[1] = NATIVE_ASSET;
         underlyingTokens[2] = address(usdc);
+        underlyingTokens[3] = address(weth);
 
-        bytes32[] memory priceFeedIds = new bytes32[](3);
+        bytes32[] memory priceFeedIds = new bytes32[](4);
         priceFeedIds[0] = WBTC_PRICE_FEED_ID;
         priceFeedIds[1] = FTM_PRICE_FEED_ID;
         priceFeedIds[2] = USDC_PRICE_FEED_ID;
+        priceFeedIds[3] = ETH_PRICE_FEED_ID;
 
-        pythOracle = new PythOracle(admin, pythOracleAddress, underlyingTokens, priceFeedIds);
+        pythOracle =
+            new PythOracle(admin, pythOracleAddress, underlyingTokens, priceFeedIds, PYTH_STALE_PRICE_THRESHOLD);
         vm.stopPrank();
+
+        // Ensure Pyth price feeds are not stale
+        _updatePythPriceFeeds();
+    }
+
+    /**
+     * @dev Update Pyth price feed for supported tokens (USDC, WBTC, FTM, SOLVBTC, ETH) from Hermes
+     * @notice Off-chain agents are responsible for updating the price feed (Pull Oracle model)
+     */
+    function _updatePythPriceFeeds() internal {
+        // Data retrieved from Pyth Hermes -> https://hermes.pyth.network/docs/#/rest/latest_price_updates) on 25 December 2024 16:03:48 UTC
+        string memory updateDataStr = vm.readFile("./test/mocks/PythPriceFeedData.txt");
+        string memory updateDataPrefixedStr = string.concat("0x", updateDataStr);
+        bytes memory updateDataBytes = vm.parseBytes(updateDataPrefixedStr);
+
+        bytes[] memory updateData = new bytes[](1);
+        updateData[0] = updateDataBytes;
+
+        // Update Pyth price feed for supported tokens (USDC, WBTC, FTM, SOLVBTC, ETH)
+        uint256 fee = pyth.getUpdateFee(updateData);
+        pyth.updatePriceFeeds{value: fee}(updateData);
     }
 
     function _deployBandOracle() internal {
@@ -113,15 +150,17 @@ contract OracleTest is BaseTest {
     function _deployAPI3Oracle() internal {
         vm.startPrank(admin);
 
-        address[] memory underlyingTokens = new address[](3);
+        address[] memory underlyingTokens = new address[](4);
         underlyingTokens[0] = NATIVE_ASSET;
         underlyingTokens[1] = address(wbtc);
         underlyingTokens[2] = address(usdc);
+        underlyingTokens[3] = address(weth);
 
-        address[] memory api3ProxyAddresses = new address[](3);
+        address[] memory api3ProxyAddresses = new address[](4);
         api3ProxyAddresses[0] = SONIC_BLAZE_TESTNET_API3_FTM_PROXY;
         api3ProxyAddresses[1] = SONIC_BLAZE_TESTNET_API3_WBTC_PROXY;
         api3ProxyAddresses[2] = SONIC_BLAZE_TESTNET_API3_USDC_PROXY;
+        api3ProxyAddresses[3] = SONIC_BLAZE_TESTNET_API3_ETH_PROXY;
 
         api3Oracle = new API3Oracle(admin, underlyingTokens, api3ProxyAddresses);
         vm.stopPrank();
@@ -206,17 +245,17 @@ contract OracleTest is BaseTest {
         vm.assertTrue(isWbtcPriceValid);
         console.log("wbtcPrice", wbtcPrice);
 
-        // USDC hovers around $1
-        (uint256 usdcPrice, bool isUsdcPriceValid) = api3Oracle.getPrice(address(usdc));
-        vm.assertGt(usdcPrice, 0.9e30);
-        vm.assertLt(usdcPrice, 1.1e30);
-        vm.assertTrue(isUsdcPriceValid);
-        console.log("usdcPrice", usdcPrice);
+        // ETH hovers around $3.3-3.5k during the forked block
+        (uint256 wethPrice, bool isWethPriceValid) = api3Oracle.getPrice(address(weth));
+        vm.assertGt(wethPrice, 3300e18);
+        vm.assertLt(wethPrice, 3500e18);
+        vm.assertTrue(isWethPriceValid);
+        console.log("wethPrice", wethPrice);
 
-        // At block=3370115, FTM was around $1.31
+        // FTM was around ~$1 during the forked block
         (uint256 ftmPrice, bool isFtmPriceValid) = api3Oracle.getPrice(NATIVE_ASSET);
-        vm.assertGt(ftmPrice, 0.8e18);
-        vm.assertLt(ftmPrice, 1.3e18);
+        vm.assertGt(ftmPrice, 0.9e18);
+        vm.assertLt(ftmPrice, 1.1e18);
         vm.assertTrue(isFtmPriceValid);
         console.log("ftmPrice", ftmPrice);
     }
@@ -311,15 +350,15 @@ contract OracleTest is BaseTest {
     }
 
     function test_priceOracleAggregator_getUnderlyingPrice() public {
-        // Check underlyingPrice for BTC
+        // Check underlyingPrice for BTC for Pyth price feed update on (25 December 2024 16:03:48 UTC)
         uint256 btcPrice = priceOracleAggregator.getUnderlyingPrice(CToken(address(cWbtcDelegator)));
-        vm.assertGt(btcPrice, 1e32);
-        vm.assertLt(btcPrice, 1e33);
+        vm.assertGt(btcPrice, 98.1e31);
+        vm.assertLt(btcPrice, 98.2e31);
 
-        // Check underlyingPrice for FTM
+        // Check underlyingPrice for FTM for Pyth price feed update on (25 December 2024 16:03:48 UTC)
         uint256 ftmPrice = priceOracleAggregator.getUnderlyingPrice(cSonic);
-        vm.assertGt(ftmPrice, 1e18);
-        vm.assertLt(ftmPrice, 1e19);
+        vm.assertGt(ftmPrice, 0.98e18);
+        vm.assertLt(ftmPrice, 0.99e18);
     }
 
     function test_whenNoOracleSourceFoundForToken() public {
@@ -340,6 +379,53 @@ contract OracleTest is BaseTest {
         );
         uint256 price = priceOracleAggregator.getUnderlyingPrice(CToken(address(cErc20Delegator)));
         vm.assertEq(price, 0);
+    }
+
+    function test_pythOracle_getPrice_stalePrice() public {
+        address[] memory cTokens = new address[](4);
+        cTokens[0] = address(wbtc);
+        cTokens[1] = address(weth);
+        cTokens[2] = address(usdc);
+        cTokens[3] = NATIVE_ASSET;
+
+        for (uint256 i = 0; i < cTokens.length; i++) {
+            address cToken = cTokens[i];
+
+            // Shouldn't be stale yet
+            vm.warp(SONIC_BLAZE_TESTNET_FORK_BLOCK_TIMESTAMP + PYTH_STALE_PRICE_THRESHOLD / 2);
+            (uint256 price, bool isValid) = pythOracle.getPrice(cToken);
+            vm.assertGt(price, 0);
+            vm.assertTrue(isValid);
+
+            // Fast forward as much as stale price threshold
+            vm.warp(SONIC_BLAZE_TESTNET_FORK_BLOCK_TIMESTAMP + PYTH_STALE_PRICE_THRESHOLD + 1 seconds);
+            (price, isValid) = pythOracle.getPrice(cToken);
+            vm.assertEq(price, 0);
+            vm.assertFalse(isValid);
+        }
+    }
+
+    function test_api3Oracle_getPrice_stalePrice() public {
+        address[] memory underlyingTokens = new address[](3);
+        underlyingTokens[0] = address(wbtc);
+        underlyingTokens[1] = address(weth);
+        underlyingTokens[2] = NATIVE_ASSET;
+
+        for (uint256 i = 0; i < underlyingTokens.length; i++) {
+            address underlyingToken = underlyingTokens[i];
+
+            // Shouldn't be stale yet
+            vm.warp(SONIC_BLAZE_TESTNET_FORK_BLOCK_TIMESTAMP);
+            (uint256 price, bool isValid) = api3Oracle.getPrice(underlyingToken);
+            vm.assertGt(price, 0);
+            vm.assertTrue(isValid);
+
+            // Fast forward as much as stale price threshold
+            vm.warp(SONIC_BLAZE_TESTNET_FORK_BLOCK_TIMESTAMP + API3_STALE_PRICE_THRESHOLD + 1 seconds);
+            (price, isValid) = api3Oracle.getPrice(underlyingToken);
+            vm.assertEq(price, 0);
+            vm.assertFalse(isValid);
+        }
     }
 
     function test_oracleSourceReturnsInvalidPrice() public {
@@ -367,6 +453,31 @@ contract OracleTest is BaseTest {
         priceOracleAggregator.updateTokenOracles(address(mockErc20), oracles);
         uint256 price = priceOracleAggregator.getUnderlyingPrice(CToken(address(cErc20Delegator)));
         vm.assertEq(price, 0);
+    }
+
+    function test_priceOracleAggregator_getUnderlyingPrice_stalePriceFallback() public {
+        vm.startPrank(admin);
+
+        IOracleSource[] memory oracles = new IOracleSource[](2);
+        oracles[0] = api3Oracle;
+        oracles[1] = pythOracle;
+
+        // USDC is stale for API3 on SONIC Testnet (subscription expired), but not for Pyth
+        priceOracleAggregator.updateTokenOracles(address(usdc), oracles);
+
+        // Get USDC prices from Pyth & API3
+        (uint256 pythUsdcPrice, bool isPythUsdcPriceValid) = pythOracle.getPrice(address(usdc));
+        (uint256 api3UsdcPrice, bool isApi3UsdcPriceValid) = api3Oracle.getPrice(address(usdc));
+
+        vm.assertTrue(isPythUsdcPriceValid);
+        vm.assertFalse(isApi3UsdcPriceValid);
+
+        // Get USDC price from priceOracleAggregator
+        uint256 usdcPrice = priceOracleAggregator.getUnderlyingPrice(CToken(address(cUsdcDelegator)));
+        vm.assertEq(usdcPrice, pythUsdcPrice);
+        vm.assertNotEq(usdcPrice, api3UsdcPrice);
+
+        vm.stopPrank();
     }
 
     function test_priceOracleAggregator_getUnderlyingPrice_enforcePriority() public {

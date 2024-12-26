@@ -76,10 +76,17 @@ contract API3Oracle is IOracleSource, Ownable2Step {
 
         // API3 returns prices with scaled up by 1e18 base
         // https://docs.api3.org/dapps/integration/contract-integration.html#using-value
-        (int224 price,) = api3Proxy.read();
+        (int224 price, uint32 timestamp) = api3Proxy.read();
 
         // Ensure price is positive, negative & zero prices are not valid
         if (price <= 0) {
+            return 0;
+        }
+
+        // ---timestamp---block.timestamp---timestamp + 24 hours--- [ OK ]
+        // ---timestamp---timestamp + 24 hours---block.timestamp--- [ NOT OK ]
+        // Price staleness check, API3 provides 24 hour heartbeat
+        if (block.timestamp - 24 hours > timestamp) {
             return 0;
         }
 

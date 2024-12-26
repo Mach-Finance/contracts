@@ -31,11 +31,13 @@ contract BaseTest is Test, IError, IEvents {
     CSonic public cSonic;
     CErc20Delegator public cWbtcDelegator;
     CErc20Delegator public cUsdcDelegator;
+    CErc20Delegator public cWethDelegator;
     CErc20Delegate public cErc20Delegate;
     Comptroller public comptroller;
     JumpRateModelV2 public interestRateModel;
     ERC20Mock public wbtc;
     ERC20Mock public usdc;
+    ERC20Mock public weth;
 
     uint256 internal baseRatePerYear = 0;
     uint256 internal multiplierPerYear = 0.25e18;
@@ -52,6 +54,7 @@ contract BaseTest is Test, IError, IEvents {
         interestRateModel = new JumpRateModelV2(baseRatePerYear, multiplierPerYear, jumpMultiplierPerYear, kink_, admin);
         wbtc = new MockERC20(8);
         usdc = new MockERC20(6);
+        weth = new MockERC20(18);
         cErc20Delegate = new CErc20Delegate();
         cWbtcDelegator = new CErc20Delegator(
             address(wbtc), // underlying
@@ -77,11 +80,23 @@ contract BaseTest is Test, IError, IEvents {
             address(cErc20Delegate), // implementation
             "" // becomeImplementationData
         );
+        cWethDelegator = new CErc20Delegator(
+            address(weth), // underlying
+            comptroller, // comptroller
+            interestRateModel, // interestRateModel
+            1e18, // initialExchangeRateMantissa
+            "Compound Wrapped Ethereum", // name
+            "cWETH", // symbol
+            8, // decimals
+            payable(admin), // admin
+            address(cErc20Delegate), // implementation
+            "" // becomeImplementationData
+        );
         cSonic = new CSonic(comptroller, interestRateModel, 1e18, "Sonic", "cSonic", 18, payable(admin));
 
         vm.assertEq(wbtc.decimals(), 8);
         vm.assertEq(usdc.decimals(), 6);
-
+        vm.assertEq(weth.decimals(), 18);
         comptroller._supportMarket(CToken(address(cWbtcDelegator)));
         comptroller._supportMarket(CToken(address(cSonic)));
         vm.stopPrank();
