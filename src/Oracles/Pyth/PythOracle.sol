@@ -37,7 +37,7 @@ contract PythOracle is IOracleSource, Ownable2Step {
         pyth = IPyth(_pyth);
 
         for (uint256 i = 0; i < _underlyingTokens.length; i++) {
-            priceFeedIds[_underlyingTokens[i]] = _priceFeedIds[i];
+            _setPriceFeedId(_underlyingTokens[i], _priceFeedIds[i]);
         }
 
         require(_stalePriceThreshold > 0, "PythOracle: Stale price threshold must be greater than 0");
