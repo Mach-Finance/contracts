@@ -47,6 +47,36 @@ contract CTokenTest is BaseTest {
         assertEq(address(admin).balance, 100 ether);
     }
 
+    function testRevert_setNonCTokenSupplyCap() public {
+        vm.startPrank(admin);
+        address nonCToken = makeAddr("nonCToken");
+
+        CToken[] memory cTokens = new CToken[](1);
+        cTokens[0] = CToken(address(nonCToken));
+
+        uint256[] memory supplyCaps = new uint256[](1);
+        supplyCaps[0] = 100 ether;
+
+        vm.expectRevert("market must be listed");
+        comptroller._setMarketSupplyCaps(cTokens, supplyCaps);
+        vm.stopPrank();
+    }
+
+    function testRevert_setNonCTokenBorrowCap() public {
+        vm.startPrank(admin);
+        address nonCToken = makeAddr("nonCToken");
+
+        CToken[] memory cTokens = new CToken[](1);
+        cTokens[0] = CToken(address(nonCToken));
+
+        uint256[] memory newBorrowCaps = new uint256[](1);
+        newBorrowCaps[0] = 100 ether;
+
+        vm.expectRevert("market must be listed");
+        comptroller._setMarketBorrowCaps(cTokens, newBorrowCaps);
+        vm.stopPrank();
+    }
+
     function test_mint_hitSupplyCap() public {
         deal(address(wbtc), admin, 1000 ether);
         deal(admin, 1e9 ether);
