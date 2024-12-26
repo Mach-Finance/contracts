@@ -1037,6 +1037,8 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
         require(numMarkets != 0 && numMarkets == numBorrowCaps, "invalid input");
 
         for (uint256 i = 0; i < numMarkets; i++) {
+            // Check cTokens[i] is supported cToken
+            require(markets[address(cTokens[i])].isListed, "market must be listed");
             borrowCaps[address(cTokens[i])] = newBorrowCaps[i];
             emit NewBorrowCap(cTokens[i], newBorrowCaps[i]);
         }
@@ -1060,6 +1062,8 @@ contract Comptroller is ComptrollerV2Storage, ComptrollerInterface, ComptrollerE
         require(numMarkets != 0 && numMarkets == numSupplyCaps, "invalid input");
 
         for (uint256 i = 0; i < numMarkets; i++) {
+            // Check cTokens[i] is supported cToken
+            require(markets[address(cTokens[i])].isListed, "market must be listed");
             supplyCaps[address(cTokens[i])] = newSupplyCaps[i];
             emit NewSupplyCap(cTokens[i], newSupplyCaps[i]);
         }
