@@ -190,7 +190,7 @@ contract DeployMachFi is Script {
         priceFeedIds[0] = BTC_PRICE_FEED_ID;
         priceFeedIds[1] = FTM_PRICE_FEED_ID;
 
-        pythOracle = new PythOracle(admin, PYTH_ORACLE_ADDRESS, underlyingTokens, priceFeedIds);
+        pythOracle = new PythOracle(admin, PYTH_ORACLE_ADDRESS, underlyingTokens, priceFeedIds, 4 hours);
     }
 
     function _deployAPI3Oracle() internal {
