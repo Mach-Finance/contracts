@@ -26,7 +26,7 @@ contract API3Oracle is IOracleSource, Ownable2Step {
         );
 
         for (uint256 i = 0; i < _underlyingTokens.length; i++) {
-            tokenToApi3ProxyAddress[_underlyingTokens[i]] = _api3ProxyAddresses[i];
+            _setApi3ProxyAddress(_underlyingTokens[i], _api3ProxyAddresses[i]);
         }
     }
 
