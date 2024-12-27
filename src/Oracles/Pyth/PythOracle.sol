@@ -105,8 +105,9 @@ contract PythOracle is IOracleSource, Ownable2Step {
         bytes32 priceFeedId = priceFeedIds[token];
         PythStructs.Price memory pythPrice = pyth.getPriceUnsafe(priceFeedId);
 
-        // Ensure price is positive, else underflow will occur (fatal issue)
-        if (pythPrice.price < 0) return (0, 0);
+        // Ensure price is non-negative and expo is non-positive
+        // Otherwise, underflow will occur (fatal issue)
+        if (pythPrice.price < 0 || pythPrice.expo > 0) return (0, 0);
 
         // Ensure price is not stale (https://github.com/pyth-network/pyth-sdk-solidity/blob/c24b3e0173a5715c875ae035c20e063cb900f481/AbstractPyth.sol#L54)
         if (block.timestamp - stalePriceThreshold > pythPrice.publishTime) {
