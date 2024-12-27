@@ -86,4 +86,9 @@ contract SupportMarketHelper is Ownable2Step, ReentrancyGuard {
         unitroller._setPendingAdmin(owner());
         require(unitroller.pendingAdmin() == owner(), "Pending admin must be owner");
     }
+
+    // Escape hatch function to sweep underlying tokens
+    function sweepUnderlying(IERC20 _underlyingToken) external onlyOwner {
+        _underlyingToken.safeTransfer(owner(), _underlyingToken.balanceOf(address(this)));
+    }
 }
