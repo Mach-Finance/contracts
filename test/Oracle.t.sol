@@ -46,7 +46,7 @@ contract OracleTest is BaseTest {
     // Set block.number to the time of the PythPriceFeedData.txt feed update (25 December 2024 16:03:48 UTC) - Merry Christmas!
     uint256 constant SONIC_BLAZE_TESTNET_FORK_BLOCK_NUMBER = 6925940;
     uint256 constant SONIC_BLAZE_TESTNET_FORK_BLOCK_TIMESTAMP = 1735142628;
-    uint256 constant PYTH_STALE_PRICE_THRESHOLD = 4 hours;
+    uint256 constant PYTH_STALE_PRICE_THRESHOLD = 1 hours;
     uint256 constant API3_STALE_PRICE_THRESHOLD = 24 hours;
 
     string SONIC_BLAZE_TESTNET_RPC_URL = vm.envString("SONIC_BLAZE_TESTNET_RPC_URL");
