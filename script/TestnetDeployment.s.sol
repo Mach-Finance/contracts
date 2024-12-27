@@ -4,6 +4,7 @@ pragma solidity 0.8.22;
 import {Script} from "forge-std/Script.sol";
 import {CErc20Delegator} from "../src/CErc20Delegator.sol";
 import {CErc20Delegate} from "../src/CErc20Delegate.sol";
+import {CErc20} from "../src/CErc20.sol";
 import {CSonic} from "../src/CSonic.sol";
 import {CToken} from "../src/CToken.sol";
 import {ComptrollerInterface} from "../src/ComptrollerInterface.sol";
@@ -21,6 +22,7 @@ import {Maximillion} from "../src/Maximillion.sol";
 import {Unitroller} from "../src/Unitroller.sol";
 import {ComptrollerV1Storage} from "../src/ComptrollerStorage.sol";
 import {FaucetERC20} from "./helpers/FaucetERC20.sol";
+import {SupportMarketHelper} from "./helpers/SupportMarketHelper.sol";
 
 import "forge-std/console.sol";
 
@@ -30,6 +32,7 @@ contract TestnetDeploymentScript is Script {
     bytes32 constant USDC_PRICE_FEED_ID = 0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a;
     bytes32 constant SOLV_PRICE_FEED_ID = 0xf253cf87dc7d5ed5aa14cba5a6e79aee8bcfaef885a0e1b807035a0bbecc36fa;
     bytes32 constant ETH_PRICE_FEED_ID = 0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace;
+    bytes32 constant USDT_PRICE_FEED_ID = 0x2b89b9dc8fdf9f34709a5b106b472f0f39bb6ca9ce04b0fd7f2e971688e2e53b;
 
     address public constant NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
@@ -40,6 +43,11 @@ contract TestnetDeploymentScript is Script {
     address constant SONIC_BLAZE_TESTNET_API3_USDC_PROXY = 0xD3C586Eec1C6C3eC41D276a23944dea080eDCf7f;
     address constant SONIC_BLAZE_TESTNET_API3_SOLV_PROXY = 0xadf6e9419E483Cc214dfC9EF1887f3aa7e85cA09;
     address constant SONIC_BLAZE_TESTNET_API3_ETH_PROXY = 0x5b0cf2b36a65a6BB085D501B971e4c102B9Cd473;
+    address constant SONIC_BLAZE_TESTNET_API3_USDT_PROXY = 0x4eadC6ee74b7Ceb09A4ad90a33eA2915fbefcf76;
+
+    // Look at Euler for best practice
+    // https://github.com/euler-xyz/euler-price-oracle/blob/master/src/adapter/pyth/PythOracle.sol
+    uint256 public constant PYTH_STALENESS_PERIOD = 1 hours;
 
     CSonic public cSonic = CSonic(payable(0xa3FC66E3098d6D7BEfB6e3EC4356B20e3DFD8890));
 
@@ -66,6 +74,9 @@ contract TestnetDeploymentScript is Script {
     PriceOracleAggregator public priceOracleAggregator =
         PriceOracleAggregator(0x4518765214645dD7bAe27139d9DFDbc6E7ac99F6);
 
+    // Singleton instance
+    SupportMarketHelper public supportMarketHelper;
+
     // @notice - Admin address for the deployment
     address public admin;
 
@@ -74,19 +85,8 @@ contract TestnetDeploymentScript is Script {
         admin = vm.addr(privateKey);
         vm.startBroadcast(privateKey);
 
-        IOracleSource[] memory oracles = new IOracleSource[](2);
-        oracles[0] = api3Oracle;
-        oracles[1] = pythOracle;
-
-        priceOracleAggregator.updateTokenOracles(address(usdc), oracles);
-        priceOracleAggregator.updateTokenOracles(address(wbtc), oracles);
-        priceOracleAggregator.updateTokenOracles(address(eth), oracles);
-        priceOracleAggregator.updateTokenOracles(address(solv), oracles);
-
-        uint256 cUsdcUnderlyingPrice = priceOracleAggregator.getUnderlyingPrice(CToken(address(cUsdc)));
-        uint256 cWbtcUnderlyingPrice = priceOracleAggregator.getUnderlyingPrice(CToken(address(cWbtc)));
-        uint256 cEthUnderlyingPrice = priceOracleAggregator.getUnderlyingPrice(CToken(address(cEth)));
-        uint256 cSolvUnderlyingPrice = priceOracleAggregator.getUnderlyingPrice(CToken(address(cSolv)));
+        supportMarketHelper = new SupportMarketHelper(payable(address(comptroller)), admin);
+        deployNewCToken("MachFi USDT", "cUSDT", 6, USDT_PRICE_FEED_ID, SONIC_BLAZE_TESTNET_API3_USDT_PROXY);
 
         vm.stopBroadcast();
     }
@@ -149,16 +149,21 @@ contract TestnetDeploymentScript is Script {
             priceOracleAggregator.updateTokenOracles(address(newErc20), oracles);
         }
 
-        // 5. Support market
-        comptroller._supportMarket(CToken(address(newCtoken)));
-
-        // 5. Mint some cTokens, burn them to make sure total supply doesn't go to zero
-        // @dev - Preferably do this in a single transaction (prevent front-running)
-        // https://github.com/SunWeb3Sec/DeFiHackLabs/blob/main/src/test/2023-04/HundredFinance_2_exp.sol
+        // 5. Use SupportMarketHelper to support market safely
         {
-            newErc20.approve(address(newCtoken), totalAmountToMint);
-            newCtoken.mint(1 * 10 ** tokenDecimals);
-            newCtoken.transfer(address(0), 1 * 10 ** tokenDecimals);
+            // Burn initial amount of underlying tokens (should be modified to each token)
+            uint256 amountToBurn = 1 * 10 ** tokenDecimals;
+
+            // Approve "supportMarketHelper" to burn underlying tokens
+            newErc20.approve(address(supportMarketHelper), amountToBurn);
+
+            // Grant admin role to SupportMarketHelper
+            unitroller._setPendingAdmin(address(supportMarketHelper));
+            supportMarketHelper.supportCErc20Market(CErc20(address(newCtoken)), amountToBurn);
+
+            // Accept the admin role back
+            unitroller._acceptAdmin();
+            require(unitroller.admin() == admin, "Admin role not accepted");
         }
     }
 
@@ -177,12 +182,6 @@ contract TestnetDeploymentScript is Script {
         comptroller = Comptroller(payable(address(unitroller)));
     }
 
-    function supportCTokens(address[] memory cTokens) public {
-        for (uint256 i = 0; i < cTokens.length; i++) {
-            comptroller._supportMarket(CToken(cTokens[i]));
-        }
-    }
-
     function deployPriceOracles() public returns (PriceOracleAggregator) {
         _deployPythOracle();
         _deployAPI3Oracle();
@@ -193,8 +192,8 @@ contract TestnetDeploymentScript is Script {
         priceOracleAggregator = PriceOracleAggregator(payable(priceOracleAggregatorProxyAddress));
 
         IOracleSource[] memory oracles = new IOracleSource[](2);
-        oracles[0] = pythOracle;
-        oracles[1] = api3Oracle;
+        oracles[0] = api3Oracle;
+        oracles[1] = pythOracle;
 
         console.log("PriceOracleAggregator deployed at", address(priceOracleAggregator));
 
@@ -205,7 +204,9 @@ contract TestnetDeploymentScript is Script {
         address[] memory underlyingTokens = new address[](0);
         bytes32[] memory priceFeedIds = new bytes32[](0);
 
-        pythOracle = new PythOracle(admin, BLAZE_TESTNET_PYTH_ORACLE_ADDRESS, underlyingTokens, priceFeedIds);
+        pythOracle = new PythOracle(
+            admin, BLAZE_TESTNET_PYTH_ORACLE_ADDRESS, underlyingTokens, priceFeedIds, PYTH_STALENESS_PERIOD
+        );
         console.log("PythOracle deployed at", address(pythOracle));
     }
 
@@ -217,6 +218,7 @@ contract TestnetDeploymentScript is Script {
         console.log("API3Oracle deployed at", address(api3Oracle));
     }
 
+    // @notice -  Only call this when market has significant liquidity to prevent donation attack
     function setCollateralFactors(address[] memory cTokens, uint256[] memory collateralFactors) public {
         for (uint256 i = 0; i < cTokens.length; i++) {
             comptroller._setCollateralFactor(CToken(cTokens[i]), collateralFactors[i]);
