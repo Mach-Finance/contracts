@@ -28,8 +28,8 @@ contract CTokenStorage {
     uint8 public decimals;
 
     // Maximum borrow rate that can ever be applied (.0001% / timestamp)
-    // Estimation of maximum borrow rate = 0.0001 * (365 * 24 * 3600) / 0.4 blocks per second
-    // 0.0001 * 31536000 / 0.4 = 7884%
+    // Estimation of maximum borrow rate = 0.0001% * ((365 * 24 * 3600) / 1 second) = 3153%
+    // The original interest from Compound v2 is 0.0005% * ((365 * 24 * 3600) / 15 seconds) = 1051%
     uint256 internal constant borrowRateMaxMantissa = 0.0001e16;
 
     // Maximum fraction of interest that can be set aside for reserves
