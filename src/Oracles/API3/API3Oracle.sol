@@ -13,8 +13,11 @@ contract API3Oracle is IOracleSource, Ownable2Step {
     address public constant NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     event UnderlyingTokenApi3ProxyAddressSet(address indexed token, address api3ProxyAddress);
+    event StalePriceThresholdSet(uint256 indexed stalePriceThreshold);
+    // @notice Stale price threshold in seconds
 
-    // Mapping between underlying token and API3 proxy address
+    uint256 public stalePriceThreshold;
+    // @notice Mapping between underlying token and API3 proxy address
     mapping(address => address) public tokenToApi3ProxyAddress;
 
     constructor(address _owner, address[] memory _underlyingTokens, address[] memory _api3ProxyAddresses)
@@ -28,6 +31,9 @@ contract API3Oracle is IOracleSource, Ownable2Step {
         for (uint256 i = 0; i < _underlyingTokens.length; i++) {
             _setApi3ProxyAddress(_underlyingTokens[i], _api3ProxyAddresses[i]);
         }
+
+        // Currently, API3 provides 24 hour heartbeat, so set stale price threshold to 24 hours
+        stalePriceThreshold = 24 hours;
     }
 
     /**
@@ -83,10 +89,10 @@ contract API3Oracle is IOracleSource, Ownable2Step {
             return 0;
         }
 
-        // ---timestamp---block.timestamp---timestamp + 24 hours--- [ OK ]
-        // ---timestamp---timestamp + 24 hours---block.timestamp--- [ NOT OK ]
-        // Price staleness check, API3 provides 24 hour heartbeat
-        if (block.timestamp - 24 hours > timestamp) {
+        // ---timestamp---block.timestamp---timestamp + stalePriceThreshold--- [ OK ]
+        // ---timestamp---timestamp + stalePriceThreshold---block.timestamp--- [ NOT OK ]
+        // Price staleness check, API3 provides 24 hour heartbeat (stalePriceThreshold = 24 hours)
+        if (block.timestamp - stalePriceThreshold > timestamp) {
             return 0;
         }
 
@@ -126,5 +132,15 @@ contract API3Oracle is IOracleSource, Ownable2Step {
         for (uint256 i = 0; i < _underlyingTokens.length; i++) {
             _setApi3ProxyAddress(_underlyingTokens[i], _api3ProxyAddresses[i]);
         }
+    }
+
+    /**
+     * @notice Set stale price threshold, only callable by owner
+     * @param _stalePriceThreshold The new stale price threshold in seconds
+     */
+    function setStalePriceThreshold(uint256 _stalePriceThreshold) external onlyOwner {
+        require(_stalePriceThreshold > 0, "API3Oracle: Stale price threshold must be greater than 0");
+        stalePriceThreshold = _stalePriceThreshold;
+        emit StalePriceThresholdSet(_stalePriceThreshold);
     }
 }

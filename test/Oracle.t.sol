@@ -605,6 +605,50 @@ contract OracleTest is BaseTest {
         api3Oracle.bulkSetApi3ProxyAddresses(tokens, api3ProxyAddresses);
     }
 
+    function test_pythOracle_setStalePriceThreshold(uint256 newStalePriceThreshold) public {
+        vm.assume(newStalePriceThreshold > 0);
+
+        vm.prank(admin);
+        pythOracle.setStalePriceThreshold(newStalePriceThreshold);
+        assertEq(pythOracle.stalePriceThreshold(), newStalePriceThreshold);
+    }
+
+    function test_api3Oracle_setStalePriceThreshold(uint256 newStalePriceThreshold) public {
+        vm.assume(newStalePriceThreshold > 0);
+
+        vm.prank(admin);
+        api3Oracle.setStalePriceThreshold(newStalePriceThreshold);
+        assertEq(api3Oracle.stalePriceThreshold(), newStalePriceThreshold);
+    }
+
+    function testRevert_pythOracle_whenSetInvalidStalePriceThreshold() public {
+        vm.prank(admin);
+        vm.expectRevert("PythOracle: Stale price threshold must be greater than 0");
+        pythOracle.setStalePriceThreshold(0);
+    }
+
+    function testRevert_api3Oracle_whenSetInvalidStalePriceThreshold() public {
+        vm.prank(admin);
+        vm.expectRevert("API3Oracle: Stale price threshold must be greater than 0");
+        api3Oracle.setStalePriceThreshold(0);
+    }
+
+    function testRevert_pythOracle_whenNonOwnerSetsStalePriceThreshold(address user) public {
+        vm.assume(user != admin);
+
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUnauthorizedAccount.selector, user));
+        pythOracle.setStalePriceThreshold(1 days);
+    }
+
+    function testRevert_api3Oracle_whenNonOwnerSetsStalePriceThreshold(address user) public {
+        vm.assume(user != admin);
+
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUnauthorizedAccount.selector, user));
+        api3Oracle.setStalePriceThreshold(1 days);
+    }
+
     function testRevert_pythOracle_whenNonAdminSetsPriceFeed(address user) public {
         vm.assume(user != admin);
 

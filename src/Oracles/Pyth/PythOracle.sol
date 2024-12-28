@@ -17,10 +17,13 @@ contract PythOracle is IOracleSource, Ownable2Step {
     address public constant NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     event UnderlyingTokenPriceFeedSet(address indexed token, bytes32 priceFeedId);
+    event StalePriceThresholdSet(uint256 indexed stalePriceThreshold);
 
     IPyth public immutable pyth;
 
+    // @notice Stale price threshold in seconds
     uint256 public stalePriceThreshold;
+    // @notice Mapping between underlying token and Pyth price feed id
     mapping(address => bytes32) public priceFeedIds;
 
     constructor(
@@ -135,5 +138,6 @@ contract PythOracle is IOracleSource, Ownable2Step {
     function setStalePriceThreshold(uint256 _stalePriceThreshold) external onlyOwner {
         require(_stalePriceThreshold > 0, "PythOracle: Stale price threshold must be greater than 0");
         stalePriceThreshold = _stalePriceThreshold;
+        emit StalePriceThresholdSet(_stalePriceThreshold);
     }
 }
