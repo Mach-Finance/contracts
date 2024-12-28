@@ -16,6 +16,7 @@ import {API3Oracle} from "../src/Oracles/API3/API3Oracle.sol";
 import {IApi3ReaderProxy} from "@api3/contracts/interfaces/IApi3ReaderProxy.sol";
 import {IStdReference} from "../src/Oracles/Band/IStdReference.sol";
 import {IPyth} from "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 // Helper functions for upgrading contracts from OpenZeppelin, works with Foundry
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
@@ -369,7 +370,7 @@ contract OracleTest is BaseTest {
             address(mockErc20), // underlying
             comptroller, // comptroller
             interestRateModel, // interestRateModel
-            1e18, // initialExchangeRateMantissa
+            2 * 10 ** (mockErc20.decimals() + 18 - cTokenDecimals - 2), // initialExchangeRateMantissa
             "Compound Mock", // name
             "cMock", // symbol
             8, // decimals
@@ -436,7 +437,7 @@ contract OracleTest is BaseTest {
             address(mockErc20), // underlying
             comptroller, // comptroller
             interestRateModel, // interestRateModel
-            1e18, // initialExchangeRateMantissa
+            2 * 10 ** (mockErc20.decimals() + 18 - cTokenDecimals - 2), // initialExchangeRateMantissa
             "Compound Mock", // name
             "cMock", // symbol
             8, // decimals
@@ -716,7 +717,7 @@ contract OracleTest is BaseTest {
             mockToken,
             comptroller,
             interestRateModel,
-            1e18,
+            2 * 10 ** (ERC20(mockToken).decimals() + 18 - cTokenDecimals - 2),
             "Compound ETH",
             "cETH",
             8,
