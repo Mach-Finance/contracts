@@ -22,7 +22,6 @@ import {Maximillion} from "../src/Maximillion.sol";
 import {Unitroller} from "../src/Unitroller.sol";
 import {ComptrollerV1Storage} from "../src/ComptrollerStorage.sol";
 import {FaucetERC20} from "./helpers/FaucetERC20.sol";
-import {SupportMarketHelper} from "./helpers/SupportMarketHelper.sol";
 
 import "forge-std/console.sol";
 
@@ -48,6 +47,9 @@ contract TestnetDeploymentScript is Script {
     // Look at Euler for best practice
     // https://github.com/euler-xyz/euler-price-oracle/blob/master/src/adapter/pyth/PythOracle.sol
     uint256 public constant PYTH_STALENESS_PERIOD = 1 hours;
+    uint256 constant NO_ERROR = 0;
+    uint8 constant CTOKEN_DECIMALS = 8;
+    uint8 constant SONIC_DECIMALS = 18;
 
     CSonic public cSonic = CSonic(payable(0xa3FC66E3098d6D7BEfB6e3EC4356B20e3DFD8890));
 
@@ -74,9 +76,6 @@ contract TestnetDeploymentScript is Script {
     PriceOracleAggregator public priceOracleAggregator =
         PriceOracleAggregator(0x4518765214645dD7bAe27139d9DFDbc6E7ac99F6);
 
-    // Singleton instance
-    SupportMarketHelper public supportMarketHelper;
-
     // @notice - Admin address for the deployment
     address public admin;
 
@@ -85,29 +84,36 @@ contract TestnetDeploymentScript is Script {
         admin = vm.addr(privateKey);
         vm.startBroadcast(privateKey);
 
-        supportMarketHelper = new SupportMarketHelper(payable(address(comptroller)), admin);
-        deployNewCToken("MachFi USDT", "cUSDT", 6, USDT_PRICE_FEED_ID, SONIC_BLAZE_TESTNET_API3_USDT_PROXY);
+        deployNewCErc20Token("MachFi USDT", "cUSDT", 6, USDT_PRICE_FEED_ID, SONIC_BLAZE_TESTNET_API3_USDT_PROXY);
+        deployCSonic(FTM_PRICE_FEED_ID, SONIC_BLAZE_TESTNET_API3_FTM_PROXY);
 
         vm.stopBroadcast();
     }
 
-    function deployNewCToken(
+    function deployNewCErc20Token(
         string memory name,
         string memory symbol,
         uint8 tokenDecimals,
         bytes32 pythPriceFeedId,
         address api3ProxyAddress
     ) public {
+        // TODO: To be adjusted based on the initial exchange rate mantissa
+        uint256 amountToBurn = 1 * 10 ** tokenDecimals;
+        uint256 reserveFactorMantissa = 0.1e18;
+
+        // Follow Compound v2's initial exchange rate mantissa
+        uint256 initialExchangeRateMantissa = 10 ** (tokenDecimals + 18 - CTOKEN_DECIMALS) / 50;
+
         // 1. Deploy MockERC20 & mint to admin
         FaucetERC20 newErc20 = new FaucetERC20(name, symbol, tokenDecimals);
         console.log("name: ", name);
         console.log("symbol: ", symbol);
-        uint256 totalAmountToMint = 1000 * 10 ** tokenDecimals;
-        newErc20.mint(admin, totalAmountToMint);
+        newErc20.mint(admin, amountToBurn);
 
         InterestRateModel newInterestRateModel;
 
         {
+            // TODO: To be adjusted based on token, on mainnet Sonic
             uint256 baseRatePerYear = 0;
             uint256 multiplierPerYear = 0.25e18;
             uint256 jumpMultiplierPerYear = 5e18;
@@ -123,15 +129,16 @@ contract TestnetDeploymentScript is Script {
             address(newErc20),
             comptroller,
             newInterestRateModel,
-            1e18,
+            initialExchangeRateMantissa,
             name,
             symbol,
-            18,
+            CTOKEN_DECIMALS,
             payable(admin),
             address(cDelegate),
             ""
         );
         console.log("CErc20Delegator deployed at", address(newCtoken));
+        require(newCtoken.exchangeRateStored() == initialExchangeRateMantissa, "Initial exchange rate should be set");
 
         // 3. Deploy PriceOracleAggregator
         {
@@ -149,21 +156,124 @@ contract TestnetDeploymentScript is Script {
             priceOracleAggregator.updateTokenOracles(address(newErc20), oracles);
         }
 
-        // 5. Use SupportMarketHelper to support market safely
+        // 5. Set reserve factor (to be adjusted based on token)
         {
-            // Burn initial amount of underlying tokens (should be modified to each token)
-            uint256 amountToBurn = 1 * 10 ** tokenDecimals;
+            require(newCtoken._setReserveFactor(reserveFactorMantissa) == NO_ERROR, "Failed to set reserve factor");
+            require(newCtoken.reserveFactorMantissa() == reserveFactorMantissa, "Reserve factor not set properly");
+        }
 
-            // Approve "supportMarketHelper" to burn underlying tokens
-            newErc20.approve(address(supportMarketHelper), amountToBurn);
+        // 6. Support market safely
+        // CAREFUL of "exchange rate" manipulation attacks on Compound v2 forks
+        // @dev - Before setting collateral factors -> https://x.com/hexagate_/status/1650177766187323394
+        // - Support market (ensuring CF = 0, by default)
+        // - Mint some cTokens
+        // - Burn them to make sure total supply doesn't go to zero
+        // - Then set collateral factors once market grows in size
+        {
+            newErc20.approve(address(newCtoken), amountToBurn);
+            require(comptroller._supportMarket(CToken(address(newCtoken))) == NO_ERROR, "Failed to support market");
+            require(newCtoken.mint(amountToBurn) == NO_ERROR, "Failed to mint cTokens");
 
-            // Grant admin role to SupportMarketHelper
-            unitroller._setPendingAdmin(address(supportMarketHelper));
-            supportMarketHelper.supportCErc20Market(CErc20(address(newCtoken)), amountToBurn);
+            require(
+                newCtoken.balanceOf(admin) == (amountToBurn * 1e18) / initialExchangeRateMantissa,
+                "Amount to burn not equal to expected initial exchange rate mantissa"
+            );
 
-            // Accept the admin role back
-            unitroller._acceptAdmin();
-            require(unitroller.admin() == admin, "Admin role not accepted");
+            // Burn entire initial total balance of minted cTokens
+            require(newCtoken.transfer(address(0), newCtoken.balanceOf(admin)), "Failed to burn cTokens");
+        }
+
+        // Check state of market afterwards all operations
+        {
+            require(
+                newCtoken.balanceOf(address(0)) == newCtoken.totalSupply(),
+                "All cTokens minted on initially should be burned"
+            );
+            (bool isListed, uint256 collateralFactorMantissa) = comptroller.markets(address(newCtoken));
+            require(isListed, "Market should be listed");
+            require(collateralFactorMantissa == 0, "Collateral factor should be 0");
+        }
+    }
+
+    function deployCSonic(bytes32 pythPriceFeedId, address api3ProxyAddress) public {
+        // TODO: To be adjusted based on the initial exchange rate mantissa
+        uint256 amountToBurn = 1 * 10 ** SONIC_DECIMALS;
+        uint256 reserveFactorMantissa = 0.1e18;
+
+        // Follow Compound v2's initial exchange rate mantissa
+        uint256 initialExchangeRateMantissa = 10 ** (SONIC_DECIMALS + 18 - CTOKEN_DECIMALS) / 50;
+
+        // 1. Set & Deploy interest rate models
+        InterestRateModel newInterestRateModel;
+
+        {
+            // TODO: Adjust on mainnet Sonic
+            uint256 baseRatePerYear = 0;
+            uint256 multiplierPerYear = 0.25e18;
+            uint256 jumpMultiplierPerYear = 5e18;
+            uint256 kink_ = 0.8e18;
+
+            newInterestRateModel =
+                new JumpRateModelV2(baseRatePerYear, multiplierPerYear, jumpMultiplierPerYear, kink_, admin);
+            console.log("InterestRateModel deployed at", address(newInterestRateModel));
+        }
+
+        // 2. Deploy CSonic
+        CSonic newCSonic = new CSonic(
+            ComptrollerInterface(address(comptroller)),
+            newInterestRateModel,
+            initialExchangeRateMantissa,
+            "Mach Sonic",
+            "cSonic",
+            CTOKEN_DECIMALS,
+            payable(admin)
+        );
+        console.log("CSonic deployed at", address(newCSonic));
+
+        // 3. Update price oracle aggregator
+        {
+            IOracleSource[] memory oracles = new IOracleSource[](2);
+            oracles[0] = api3Oracle;
+            oracles[1] = pythOracle;
+            priceOracleAggregator.updateTokenOracles(NATIVE_ASSET, oracles);
+        }
+
+        // 4. Set price feed id and api3 proxy address
+        {
+            console.log("Setting price feed id for", NATIVE_ASSET);
+            pythOracle.setPriceFeedId(NATIVE_ASSET, pythPriceFeedId);
+            console.log("Setting api3 proxy address for", NATIVE_ASSET);
+            api3Oracle.setApi3ProxyAddress(NATIVE_ASSET, api3ProxyAddress);
+        }
+
+        // 5. Set reserve factor
+        {
+            require(newCSonic._setReserveFactor(reserveFactorMantissa) == NO_ERROR, "Failed to set reserve factor");
+            require(newCSonic.reserveFactorMantissa() == reserveFactorMantissa, "Reserve factor not set properly");
+        }
+
+        // 6. Support market safely
+        {
+            require(comptroller._supportMarket(CToken(address(newCSonic))) == NO_ERROR, "Failed to support market");
+            newCSonic.mint{value: amountToBurn}();
+            require(
+                newCSonic.balanceOf(admin) == (amountToBurn * 1e18) / initialExchangeRateMantissa,
+                "Amount to burn not equal to expected initial exchange rate mantissa"
+            );
+
+            // Burn entire initial total balance of minted cTokens
+            require(newCSonic.transfer(address(0), newCSonic.balanceOf(admin)), "Failed to burn cTokens");
+        }
+
+        // Check state of market afterwards all operations
+        {
+            require(
+                newCSonic.balanceOf(address(0)) == newCSonic.totalSupply(),
+                "All cSonic minted on initially should be burned"
+            );
+            (bool isListed, uint256 collateralFactorMantissa) = comptroller.markets(address(newCSonic));
+            require(isListed, "Market should be listed");
+            require(collateralFactorMantissa == 0, "Collateral factor should be 0");
         }
     }
 

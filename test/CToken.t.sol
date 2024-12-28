@@ -38,6 +38,100 @@ contract CTokenTest is BaseTest {
         vm.stopPrank();
     }
 
+    function test_mintWithIniitalExchangeRateMantissa() public {
+        vm.startPrank(admin);
+
+        // wBTC
+        {
+            uint256 initialExchangeRateMantissa = cWbtcDelegator.exchangeRateStored();
+            vm.assertEq(initialExchangeRateMantissa, (10 ** (wbtc.decimals() + 18 - cTokenDecimals) / 50));
+
+            uint256 amountToMint = 100 * 10 ** wbtc.decimals();
+
+            // Mint 100 wBTC
+            wbtc.mint(admin, amountToMint);
+            wbtc.approve(address(cWbtcDelegator), amountToMint);
+            require(cWbtcDelegator.mint(amountToMint) == NO_ERROR, "Mint failed");
+
+            // Check how much received for first mint
+            uint256 received = cWbtcDelegator.balanceOf(admin);
+            uint256 expectedCTokens = (amountToMint * 1e18) / initialExchangeRateMantissa;
+
+            assertEq(received, expectedCTokens);
+        }
+
+        // wETH
+        {
+            uint256 initialExchangeRateMantissa = cWethDelegator.exchangeRateStored();
+            uint256 amountToMint = 100 * 10 ** weth.decimals();
+            vm.assertEq(initialExchangeRateMantissa, (10 ** (weth.decimals() + 18 - cTokenDecimals) / 50));
+
+            // Support market (not previously supported in BaseTest.t.sol)
+            require(comptroller._supportMarket(CToken(address(cWethDelegator))) == NO_ERROR, "Market already supported");
+
+            // Mint 100 wETH
+            weth.mint(admin, amountToMint);
+            weth.approve(address(cWethDelegator), amountToMint);
+            require(cWethDelegator.mint(amountToMint) == NO_ERROR, "Mint failed");
+
+            // Check how much received for first mint
+            uint256 received = cWethDelegator.balanceOf(admin);
+            uint256 expectedCTokens = (amountToMint * 1e18) / initialExchangeRateMantissa;
+
+            assertEq(received, expectedCTokens);
+        }
+
+        // Sonic
+        {
+            uint256 initialExchangeRateMantissa = cSonic.exchangeRateStored();
+            uint256 amountToMint = 100 * 10 ** nativeTokenDecimals;
+            vm.assertEq(initialExchangeRateMantissa, (10 ** (nativeTokenDecimals + 18 - cTokenDecimals) / 50));
+
+            // Mint 100 $S
+            vm.deal(admin, amountToMint);
+            cSonic.mint{value: amountToMint}();
+
+            // Check how much received for first mint
+            uint256 received = cSonic.balanceOf(admin);
+            uint256 expectedCTokens = (amountToMint * 1e18) / initialExchangeRateMantissa;
+
+            assertEq(received, expectedCTokens);
+        }
+        vm.stopPrank();
+    }
+
+    function test_mintThenTransferCTokens() public {
+        vm.deal(alice, 1 ether);
+        vm.prank(bob);
+        wbtc.mint(bob, 100 * 10 ** wbtc.decimals());
+
+        vm.startPrank(alice);
+        cSonic.mint{value: 1 ether}();
+
+        uint256 aliceInitialBalance = cSonic.balanceOf(alice);
+        cSonic.transfer(bob, aliceInitialBalance / 4);
+        cSonic.transfer(charlie, aliceInitialBalance / 2);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        wbtc.approve(address(cWbtcDelegator), type(uint256).max);
+        cWbtcDelegator.mint(100 * 10 ** wbtc.decimals());
+
+        uint256 bobInitialBalance = cWbtcDelegator.balanceOf(bob);
+        cWbtcDelegator.transfer(charlie, bobInitialBalance / 2);
+        cWbtcDelegator.transfer(alice, bobInitialBalance / 2);
+        vm.stopPrank();
+
+        // Check balances AFTER transfer
+        assertEq(cSonic.balanceOf(alice), aliceInitialBalance / 4);
+        assertEq(cSonic.balanceOf(bob), aliceInitialBalance / 4);
+        assertEq(cSonic.balanceOf(charlie), aliceInitialBalance / 2);
+
+        assertEq(cWbtcDelegator.balanceOf(alice), bobInitialBalance / 2);
+        assertEq(cWbtcDelegator.balanceOf(bob), 0);
+        assertEq(cWbtcDelegator.balanceOf(charlie), bobInitialBalance / 2);
+    }
+
     function test_sweepNative() public {
         vm.deal(address(cWbtcDelegator), 100 ether);
         vm.prank(admin);
@@ -407,7 +501,7 @@ contract CTokenTest is BaseTest {
         // Dave mints Sonic
         vm.startPrank(dave);
         cSonic.mint{value: 2.5e5 ether}();
-        cSonic.transfer(bob, 1 ether);
+        cSonic.transfer(bob, cSonic.balanceOf(dave));
         vm.stopPrank();
 
         // Advance time
