@@ -28,6 +28,8 @@ interface IEvents {
 }
 
 contract BaseTest is Test, IError, IEvents {
+    uint256 internal constant NO_ERROR = 0;
+
     CSonic public cSonic;
     CErc20Delegator public cWbtcDelegator;
     CErc20Delegator public cUsdcDelegator;
@@ -43,9 +45,12 @@ contract BaseTest is Test, IError, IEvents {
     uint256 internal multiplierPerYear = 0.25e18;
     uint256 internal jumpMultiplierPerYear = 5e18;
     uint256 internal kink_ = 0.8e18;
+    uint8 internal cTokenDecimals = 8;
+    uint256 internal nativeTokenDecimals = 18;
 
     address public admin = makeAddr("admin");
 
+    // Ensure initially, 1 cToken = 0.02 underlying tokens
     function _deployBaselineContracts() internal {
         vm.label(admin, "admin");
 
@@ -60,7 +65,7 @@ contract BaseTest is Test, IError, IEvents {
             address(wbtc), // underlying
             comptroller, // comptroller
             interestRateModel, // interestRateModel
-            1e18, // initialExchangeRateMantissa
+            (10 ** (wbtc.decimals() + 18 - cTokenDecimals)) / 50, // initialExchangeRateMantissa
             "Compound Wrapped Bitcoin", // name
             "cWBTC", // symbol
             8, // decimals
@@ -72,7 +77,7 @@ contract BaseTest is Test, IError, IEvents {
             address(usdc), // underlying
             comptroller, // comptroller
             interestRateModel, // interestRateModel
-            1e18, // initialExchangeRateMantissa
+            (10 ** (usdc.decimals() + 18 - cTokenDecimals)) / 50, // initialExchangeRateMantissa
             "Compound USDC", // name
             "cUSDC", // symbol
             8, // decimals
@@ -84,7 +89,7 @@ contract BaseTest is Test, IError, IEvents {
             address(weth), // underlying
             comptroller, // comptroller
             interestRateModel, // interestRateModel
-            1e18, // initialExchangeRateMantissa
+            (10 ** (weth.decimals() + 18 - cTokenDecimals)) / 50, // initialExchangeRateMantissa
             "Compound Wrapped Ethereum", // name
             "cWETH", // symbol
             8, // decimals
@@ -92,7 +97,15 @@ contract BaseTest is Test, IError, IEvents {
             address(cErc20Delegate), // implementation
             "" // becomeImplementationData
         );
-        cSonic = new CSonic(comptroller, interestRateModel, 1e18, "Sonic", "cSonic", 18, payable(admin));
+        cSonic = new CSonic(
+            comptroller,
+            interestRateModel,
+            (10 ** (nativeTokenDecimals + 18 - cTokenDecimals)) / 50, // initialExchangeRateMantissa
+            "Sonic",
+            "cSonic",
+            18,
+            payable(admin)
+        );
 
         vm.assertEq(wbtc.decimals(), 8);
         vm.assertEq(usdc.decimals(), 6);
