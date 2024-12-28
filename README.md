@@ -37,5 +37,5 @@ $ forge fmt
 ### Deploy on SONIC Testnet
 
 ```shell
-$ forge script ./script/TestnetDeployment.s.sol --rpc-url sonic_testnet --force --broadcast
+$ forge script ./script/DeployMachFi.s.sol --broadcast --rpc-url sonic_testnet --force 
 ```
