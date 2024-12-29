@@ -25,6 +25,7 @@ interface IEvents {
     event UnderlyingSymbolSet(address indexed token, string symbol);
     event UnderlyingTokenPriceFeedSet(address indexed token, bytes32 priceFeedId);
     event UnderlyingTokenApi3ProxyAddressSet(address indexed token, address api3ProxyAddress);
+    event StalePriceThresholdSet(uint256 indexed stalePriceThreshold);
 }
 
 contract BaseTest is Test, IError, IEvents {
