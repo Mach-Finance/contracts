@@ -14,8 +14,8 @@ contract API3Oracle is IOracleSource, Ownable2Step {
 
     event UnderlyingTokenApi3ProxyAddressSet(address indexed token, address api3ProxyAddress);
     event StalePriceThresholdSet(uint256 indexed stalePriceThreshold);
-    // @notice Stale price threshold in seconds
 
+    // @notice Stale price threshold in seconds
     uint256 public stalePriceThreshold;
     // @notice Mapping between underlying token and API3 proxy address
     mapping(address => address) public tokenToApi3ProxyAddress;
@@ -32,8 +32,8 @@ contract API3Oracle is IOracleSource, Ownable2Step {
             _setApi3ProxyAddress(_underlyingTokens[i], _api3ProxyAddresses[i]);
         }
 
-        // Currently, API3 provides 24 hour heartbeat, so set stale price threshold to 24 hours
-        stalePriceThreshold = 24 hours;
+        // Currently, API3 provides 24 hour heartbeat, so set default stale price threshold to 24 hours
+        _setStalePriceThreshold(24 hours);
     }
 
     /**
@@ -139,6 +139,14 @@ contract API3Oracle is IOracleSource, Ownable2Step {
      * @param _stalePriceThreshold The new stale price threshold in seconds
      */
     function setStalePriceThreshold(uint256 _stalePriceThreshold) external onlyOwner {
+        _setStalePriceThreshold(_stalePriceThreshold);
+    }
+
+    /**
+     * @notice Internal function to set stale price threshold
+     * @param _stalePriceThreshold The new stale price threshold in seconds
+     */
+    function _setStalePriceThreshold(uint256 _stalePriceThreshold) internal {
         require(_stalePriceThreshold > 0, "API3Oracle: Stale price threshold must be greater than 0");
         stalePriceThreshold = _stalePriceThreshold;
         emit StalePriceThresholdSet(_stalePriceThreshold);

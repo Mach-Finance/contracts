@@ -43,8 +43,7 @@ contract PythOracle is IOracleSource, Ownable2Step {
             _setPriceFeedId(_underlyingTokens[i], _priceFeedIds[i]);
         }
 
-        require(_stalePriceThreshold > 0, "PythOracle: Stale price threshold must be greater than 0");
-        stalePriceThreshold = _stalePriceThreshold;
+        _setStalePriceThreshold(_stalePriceThreshold);
     }
 
     function _setPriceFeedId(address underlyingToken, bytes32 priceFeedId) internal {
@@ -136,6 +135,10 @@ contract PythOracle is IOracleSource, Ownable2Step {
      * @param _stalePriceThreshold The new stale price threshold in seconds
      */
     function setStalePriceThreshold(uint256 _stalePriceThreshold) external onlyOwner {
+        _setStalePriceThreshold(_stalePriceThreshold);
+    }
+
+    function _setStalePriceThreshold(uint256 _stalePriceThreshold) internal {
         require(_stalePriceThreshold > 0, "PythOracle: Stale price threshold must be greater than 0");
         stalePriceThreshold = _stalePriceThreshold;
         emit StalePriceThresholdSet(_stalePriceThreshold);

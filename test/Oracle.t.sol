@@ -164,6 +164,8 @@ contract OracleTest is BaseTest {
         api3ProxyAddresses[3] = SONIC_BLAZE_TESTNET_API3_ETH_PROXY;
 
         api3Oracle = new API3Oracle(admin, underlyingTokens, api3ProxyAddresses);
+
+        vm.assertEq(api3Oracle.stalePriceThreshold(), API3_STALE_PRICE_THRESHOLD);
         vm.stopPrank();
     }
 
@@ -403,6 +405,20 @@ contract OracleTest is BaseTest {
             (price, isValid) = pythOracle.getPrice(cToken);
             vm.assertEq(price, 0);
             vm.assertFalse(isValid);
+
+            // Update Stale Pirce threshold to longer, to make sure prices are not-stale
+            vm.prank(admin);
+            pythOracle.setStalePriceThreshold(PYTH_STALE_PRICE_THRESHOLD * 2 + 1);
+            (price, isValid) = pythOracle.getPrice(cToken);
+            vm.assertGt(price, 0);
+            vm.assertTrue(isValid);
+
+            // Update Stale Price threshold to shorter, to make sure prices are stale
+            vm.prank(admin);
+            pythOracle.setStalePriceThreshold(PYTH_STALE_PRICE_THRESHOLD - 1 seconds);
+            (price, isValid) = pythOracle.getPrice(cToken);
+            vm.assertEq(price, 0);
+            vm.assertFalse(isValid);
         }
     }
 
@@ -423,6 +439,20 @@ contract OracleTest is BaseTest {
 
             // Fast forward as much as stale price threshold
             vm.warp(SONIC_BLAZE_TESTNET_FORK_BLOCK_TIMESTAMP + API3_STALE_PRICE_THRESHOLD + 1 seconds);
+            (price, isValid) = api3Oracle.getPrice(underlyingToken);
+            vm.assertEq(price, 0);
+            vm.assertFalse(isValid);
+
+            // Update Stale Price threshold to longer, to make sure prices are not-stale
+            vm.prank(admin);
+            api3Oracle.setStalePriceThreshold(API3_STALE_PRICE_THRESHOLD * 2 + 1);
+            (price, isValid) = api3Oracle.getPrice(underlyingToken);
+            vm.assertGt(price, 0);
+            vm.assertTrue(isValid);
+
+            // Update Stale Price threshold to shorter, to make sure prices are stale
+            vm.prank(admin);
+            api3Oracle.setStalePriceThreshold(API3_STALE_PRICE_THRESHOLD - 1 seconds);
             (price, isValid) = api3Oracle.getPrice(underlyingToken);
             vm.assertEq(price, 0);
             vm.assertFalse(isValid);
@@ -609,6 +639,8 @@ contract OracleTest is BaseTest {
         vm.assume(newStalePriceThreshold > 0);
 
         vm.prank(admin);
+        vm.expectEmit(true, false, false, true);
+        emit StalePriceThresholdSet(newStalePriceThreshold);
         pythOracle.setStalePriceThreshold(newStalePriceThreshold);
         assertEq(pythOracle.stalePriceThreshold(), newStalePriceThreshold);
     }
@@ -617,6 +649,8 @@ contract OracleTest is BaseTest {
         vm.assume(newStalePriceThreshold > 0);
 
         vm.prank(admin);
+        vm.expectEmit(true, false, false, true);
+        emit StalePriceThresholdSet(newStalePriceThreshold);
         api3Oracle.setStalePriceThreshold(newStalePriceThreshold);
         assertEq(api3Oracle.stalePriceThreshold(), newStalePriceThreshold);
     }
