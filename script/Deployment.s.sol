@@ -74,14 +74,13 @@ contract DeploymentScript is Script {
     uint256 constant NO_ERROR = 0;
     uint8 constant CTOKEN_DECIMALS = 8;
     uint8 constant SONIC_DECIMALS = 18;
-    
+
     // @notice - Admin address for the deployment (Hardware wallet)
     address public admin;
 
     function run() public {
-        uint256 privateKey = vm.envUint("ADMIN_PRIVATE_KEY");
-        admin = vm.addr(privateKey);
-        vm.startBroadcast(privateKey);
+        admin = vm.envAddress("ETH_KEYSTORE_ACCOUNT");
+        vm.startBroadcast();
 
         // Deploy comptroller
         (Comptroller comptrollerImplementation, Unitroller unitroller) = deployComptroller();
@@ -117,7 +116,7 @@ contract DeploymentScript is Script {
             uint256 protocolSeizeShareMantissaSonic = 0.028e18;
 
             TokenDeploymentConfig memory sonicTokenDeploymentConfig = TokenDeploymentConfig(
-                20 * 10 ** SONIC_DECIMALS,
+                15 * 10 ** SONIC_DECIMALS, // 15 $S ~ $10
                 reserveFactorMantissaSonic,
                 protocolSeizeShareMantissaSonic,
                 FTM_PRICE_FEED_ID,
@@ -128,6 +127,24 @@ contract DeploymentScript is Script {
             // Deploy Sonic
             (CSonic sonic, Maximillion maximillion) =
                 deployCSonic(sonicTokenDeploymentConfig, comptroller, pythOracle, api3Oracle, priceOracleAggregator);
+
+            // Set supply caps
+            {
+                CToken[] memory cTokens = new CToken[](1);
+                cTokens[0] = CToken(address(sonic));
+                uint256[] memory supplyCaps = new uint256[](1);
+                supplyCaps[0] = 12500 * 10 ** SONIC_DECIMALS;
+                comptroller._setMarketSupplyCaps(cTokens, supplyCaps);
+            }
+
+            // Set borrow caps
+            {
+                CToken[] memory cTokens = new CToken[](1);
+                cTokens[0] = CToken(address(sonic));
+                uint256[] memory borrowCaps = new uint256[](1);
+                borrowCaps[0] = 8500 * 10 ** SONIC_DECIMALS;
+                comptroller._setMarketBorrowCaps(cTokens, borrowCaps);
+            }
         }
 
         JumpRateModelV2 usdcInterestRateModel;
@@ -150,7 +167,7 @@ contract DeploymentScript is Script {
         uint8 usdcDecimals = 6;
 
         TokenDeploymentConfig memory sonicTokenDeploymentConfig = TokenDeploymentConfig(
-            20 * 10 ** usdcDecimals,
+            10 * 10 ** usdcDecimals, // $20 worth of USDC
             reserveFactorMantissaUSDC,
             protocolSeizeShareMantissaUSDC,
             USDC_PRICE_FEED_ID,
@@ -173,6 +190,24 @@ contract DeploymentScript is Script {
                 priceOracleAggregator,
                 usdcInterestRateModel
             );
+
+            // Set supply caps
+            {
+                CToken[] memory cTokens = new CToken[](1);
+                cTokens[0] = CToken(address(newCtoken));
+                uint256[] memory supplyCaps = new uint256[](1);
+                supplyCaps[0] = 10000 * 10 ** usdcDecimals;
+                comptroller._setMarketSupplyCaps(cTokens, supplyCaps);
+            }
+
+            // Set borrow caps
+            {
+                CToken[] memory cTokens = new CToken[](1);
+                cTokens[0] = CToken(address(newCtoken));
+                uint256[] memory borrowCaps = new uint256[](1);
+                borrowCaps[0] = 8500 * 10 ** usdcDecimals;
+                comptroller._setMarketBorrowCaps(cTokens, borrowCaps);
+            }
         }
 
         // WETH
@@ -195,8 +230,8 @@ contract DeploymentScript is Script {
         uint256 protocolSeizeShareMantissaWETH = 0.028e18;
         uint8 wethDecimals = 18;
 
-        wethTokenDeploymentConfig = TokenDeploymentConfig(
-            0.003 * 10 ** wethDecimals, // $10 worth of WETH
+        TokenDeploymentConfig memory wethTokenDeploymentConfig = TokenDeploymentConfig(
+            3 * 10 ** (wethDecimals - 3), // $10 worth of WETH -> 0.003 WETH
             reserveFactorMantissaWETH,
             protocolSeizeShareMantissaWETH,
             ETH_PRICE_FEED_ID,
@@ -219,6 +254,24 @@ contract DeploymentScript is Script {
                 priceOracleAggregator,
                 wethInterestRateModel
             );
+
+            // Set supply caps
+            {
+                CToken[] memory cTokens = new CToken[](1);
+                cTokens[0] = CToken(address(newCtoken));
+                uint256[] memory supplyCaps = new uint256[](1);
+                supplyCaps[0] = 3 * 10 ** wethDecimals;
+                comptroller._setMarketSupplyCaps(cTokens, supplyCaps);
+            }
+
+            // Set borrow caps
+            {
+                CToken[] memory cTokens = new CToken[](1);
+                cTokens[0] = CToken(address(newCtoken));
+                uint256[] memory borrowCaps = new uint256[](1);
+                borrowCaps[0] = 25 * 10 ** (wethDecimals - 1); // 2.5 WETH
+                comptroller._setMarketBorrowCaps(cTokens, borrowCaps);
+            }
         }
 
         vm.stopBroadcast();
