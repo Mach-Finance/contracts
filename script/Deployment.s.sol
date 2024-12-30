@@ -74,7 +74,7 @@ contract DeploymentScript is Script {
     uint256 constant NO_ERROR = 0;
     uint8 constant CTOKEN_DECIMALS = 8;
     uint8 constant SONIC_DECIMALS = 18;
-
+    
     // @notice - Admin address for the deployment (Hardware wallet)
     address public admin;
 
@@ -114,7 +114,7 @@ contract DeploymentScript is Script {
         {
             // Custom to $S
             uint256 reserveFactorMantissaSonic = 0.3e18;
-            uint256 protocolSeizeShareMantissaSonic = 0.02e18;
+            uint256 protocolSeizeShareMantissaSonic = 0.028e18;
 
             TokenDeploymentConfig memory sonicTokenDeploymentConfig = TokenDeploymentConfig(
                 20 * 10 ** SONIC_DECIMALS,
@@ -146,7 +146,7 @@ contract DeploymentScript is Script {
 
         // Custom to $USDC
         uint256 reserveFactorMantissaUSDC = 0.15e18;
-        uint256 protocolSeizeShareMantissaUSDC = 0.02e18;
+        uint256 protocolSeizeShareMantissaUSDC = 0.028e18;
         uint8 usdcDecimals = 6;
 
         TokenDeploymentConfig memory sonicTokenDeploymentConfig = TokenDeploymentConfig(
@@ -192,11 +192,11 @@ contract DeploymentScript is Script {
 
         // Custom to $WETH
         uint256 reserveFactorMantissaWETH = 0.15e18;
-        uint256 protocolSeizeShareMantissaWETH = 0.02e18;
+        uint256 protocolSeizeShareMantissaWETH = 0.028e18;
         uint8 wethDecimals = 18;
 
-        sonicTokenDeploymentConfig = TokenDeploymentConfig(
-            20 * 10 ** wethDecimals,
+        wethTokenDeploymentConfig = TokenDeploymentConfig(
+            0.003 * 10 ** wethDecimals, // $10 worth of WETH
             reserveFactorMantissaWETH,
             protocolSeizeShareMantissaWETH,
             ETH_PRICE_FEED_ID,
@@ -238,8 +238,11 @@ contract DeploymentScript is Script {
         comptrollerImplementation._become(unitroller);
         Comptroller comptroller = Comptroller(payable(address(unitroller)));
 
-        // Set liquidation incentive mantissa
+        // Set liquidation incentive mantissa (follows Compound v2)
         comptroller._setLiquidationIncentive(1.08e18);
+
+        // Follow Compound v2's close factor
+        comptroller._setCloseFactor(0.5e18);
 
         return (comptrollerImplementation, unitroller);
     }
