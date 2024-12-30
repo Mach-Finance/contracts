@@ -92,8 +92,10 @@ contract DeploymentScript is Script {
         (PythOracle pythOracle, API3Oracle api3Oracle, PriceOracleAggregator priceOracleAggregator) =
             deployPriceOracle(admin, PYTH_ORACLE_ADDRESS, PYTH_STALENESS_PERIOD);
 
-        JumpRateModelV2 sonicInterestRateModel;
+        // Set price oracle
+        require(comptroller._setPriceOracle(priceOracleAggregator) == NO_ERROR, "Failed to set price oracle");
 
+        JumpRateModelV2 sonicInterestRateModel;
         {
             // $S Interest rate model & parameters
             uint256 baseRatePerYearSonic = 0;
@@ -145,9 +147,10 @@ contract DeploymentScript is Script {
         // Custom to $USDC
         uint256 reserveFactorMantissaUSDC = 0.15e18;
         uint256 protocolSeizeShareMantissaUSDC = 0.02e18;
+        uint8 usdcDecimals = 6;
 
         TokenDeploymentConfig memory sonicTokenDeploymentConfig = TokenDeploymentConfig(
-            20 * 10 ** SONIC_DECIMALS,
+            20 * 10 ** usdcDecimals,
             reserveFactorMantissaUSDC,
             protocolSeizeShareMantissaUSDC,
             USDC_PRICE_FEED_ID,
@@ -156,7 +159,7 @@ contract DeploymentScript is Script {
         );
 
         UnderlyingTokenDeploymentConfig memory underlyingTokenDeploymentConfig =
-            UnderlyingTokenDeploymentConfig(USDC_ADDRESS, "MachFi USDC", "cUSDC", 6);
+            UnderlyingTokenDeploymentConfig(USDC_ADDRESS, "MachFi USDC", "cUSDC", usdcDecimals);
 
         {
             // Deploy USDC
@@ -169,6 +172,52 @@ contract DeploymentScript is Script {
                 api3Oracle,
                 priceOracleAggregator,
                 usdcInterestRateModel
+            );
+        }
+
+        // WETH
+        JumpRateModelV2 wethInterestRateModel;
+
+        {
+            // $WETH Interest rate model & parameters
+            uint256 baseRatePerYearWETH = 0;
+            uint256 multiplierPerYearWETH = 0.035e18;
+            uint256 jumpMultiplierPerYearWETH = 7e18;
+            uint256 kinkWETH = 0.8e18;
+
+            wethInterestRateModel = new JumpRateModelV2(
+                baseRatePerYearWETH, multiplierPerYearWETH, jumpMultiplierPerYearWETH, kinkWETH, admin
+            );
+        }
+
+        // Custom to $WETH
+        uint256 reserveFactorMantissaWETH = 0.15e18;
+        uint256 protocolSeizeShareMantissaWETH = 0.02e18;
+        uint8 wethDecimals = 18;
+
+        sonicTokenDeploymentConfig = TokenDeploymentConfig(
+            20 * 10 ** wethDecimals,
+            reserveFactorMantissaWETH,
+            protocolSeizeShareMantissaWETH,
+            ETH_PRICE_FEED_ID,
+            API3_ETH_PROXY,
+            wethInterestRateModel
+        );
+
+        underlyingTokenDeploymentConfig =
+            UnderlyingTokenDeploymentConfig(WETH_ADDRESS, "MachFi WETH", "cWETH", wethDecimals);
+
+        {
+            // Deploy WETH
+            CErc20Delegator newCtoken = deployNewCErc20Token(
+                underlyingTokenDeploymentConfig,
+                sonicTokenDeploymentConfig,
+                address(cErc20Delegate),
+                comptroller,
+                pythOracle,
+                api3Oracle,
+                priceOracleAggregator,
+                wethInterestRateModel
             );
         }
 
