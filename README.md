@@ -41,5 +41,5 @@ $ forge script ./script/TestnetDeployment.s.sol --rpc-url sonic_testnet --force 
 ```
 
 ```shell
-$ forge script ./script/Deployment.s.sol --rpc-url sonic_mainnet --force --sender <sender_address> --ledger --broadcast
+$ forge script ./script/Deployment.s.sol --rpc-url sonic_mainnet --force --account <account_name>
 ```
