@@ -74,78 +74,83 @@ contract DeploymentScript is Script {
     uint8 constant CTOKEN_DECIMALS = 8;
     uint8 constant SONIC_DECIMALS = 18;
 
+    Comptroller comptrollerImplementation = Comptroller(0x147A9deA1DA08cFBb3D496A4e34C0D8C3b73Eaf8);
+    Unitroller unitroller = Unitroller(payable(0x646F91AbD5Ab94B76d1F9C5D9490A2f6DDf25730));
+    Comptroller comptroller = Comptroller(payable(address(unitroller)));
+
+    PythOracle pythOracle = PythOracle(0x69625Ca76EA8d3C6Ea9dB5Df7c49250ed14Bf03f);
+    API3Oracle api3Oracle = API3Oracle(0xD458d8CA6e52E4D8E6938B6720bf7d9E1A42d175);
+    PriceOracleAggregator priceOracleAggregator = PriceOracleAggregator(0x139Bf94a9cA4a3DB61a7Ce2022F7AECa12cEAa9d);
+
     // @notice - Deployer address
     address public constant admin = 0x9A74A959Ab5F706c1DFf414F580560287FcB7576;
 
     function run() public {
         vm.startBroadcast();
 
-        // Deploy comptroller
-        (Comptroller comptrollerImplementation, Unitroller unitroller) = deployComptroller();
+        // // Deploy comptroller
+        // (Comptroller comptrollerImplementation, Unitroller unitroller) = deployComptroller();
 
-        Comptroller comptroller = Comptroller(payable(address(unitroller)));
+        // Comptroller comptroller = Comptroller(payable(address(unitroller)));
 
-        // Deploy price oracle
-        (PythOracle pythOracle, API3Oracle api3Oracle, PriceOracleAggregator priceOracleAggregator) =
-            deployPriceOracle(admin, PYTH_ORACLE_ADDRESS, PYTH_STALENESS_PERIOD);
+        // // Deploy price oracle
+        // (PythOracle pythOracle, API3Oracle api3Oracle, PriceOracleAggregator priceOracleAggregator) =
+        //     deployPriceOracle(admin, PYTH_ORACLE_ADDRESS, PYTH_STALENESS_PERIOD);
 
-        // Set price oracle
-        require(comptroller._setPriceOracle(priceOracleAggregator) == NO_ERROR, "Failed to set price oracle");
+        // // Set price oracle
+        // require(comptroller._setPriceOracle(priceOracleAggregator) == NO_ERROR, "Failed to set price oracle");
 
-        JumpRateModelV2 sonicInterestRateModel;
-        {
-            // $S Interest rate model & parameters
-            uint256 baseRatePerYearSonic = 0;
-            uint256 multiplierPerYearSonic = 0.05e18;
-            uint256 jumpMultiplierPerYearSonic = 6e18;
-            uint256 kinkSonic = 0.6e18;
+        // JumpRateModelV2 sonicInterestRateModel;
+        // {
+        //     // $S Interest rate model & parameters
+        //     uint256 baseRatePerYearSonic = 0;
+        //     uint256 multiplierPerYearSonic = 0.05e18;
+        //     uint256 jumpMultiplierPerYearSonic = 6e18;
+        //     uint256 kinkSonic = 0.6e18;
 
-            sonicInterestRateModel = new JumpRateModelV2(
-                baseRatePerYearSonic, multiplierPerYearSonic, jumpMultiplierPerYearSonic, kinkSonic, admin
-            );
-        }
+        //     sonicInterestRateModel = new JumpRateModelV2(
+        //         baseRatePerYearSonic, multiplierPerYearSonic, jumpMultiplierPerYearSonic, kinkSonic, admin
+        //     );
+        // }
 
-        {
-            // Custom to $S
-            uint256 reserveFactorMantissaSonic = 0.3e18;
-            uint256 protocolSeizeShareMantissaSonic = 0.028e18;
+        // {
+        //     // Custom to $S
+        //     uint256 reserveFactorMantissaSonic = 0.3e18;
+        //     uint256 protocolSeizeShareMantissaSonic = 0.028e18;
 
-            TokenDeploymentConfig memory sonicTokenDeploymentConfig = TokenDeploymentConfig(
-                15 * 10 ** SONIC_DECIMALS, // 15 $S ~ $10
-                reserveFactorMantissaSonic,
-                protocolSeizeShareMantissaSonic,
-                FTM_PRICE_FEED_ID,
-                API3_FTM_PROXY,
-                sonicInterestRateModel
-            );
+        //     TokenDeploymentConfig memory sonicTokenDeploymentConfig = TokenDeploymentConfig(
+        //         15 * 10 ** SONIC_DECIMALS, // 15 $S ~ $10
+        //         reserveFactorMantissaSonic,
+        //         protocolSeizeShareMantissaSonic,
+        //         FTM_PRICE_FEED_ID,
+        //         API3_FTM_PROXY,
+        //         sonicInterestRateModel
+        //     );
 
-            // Deploy Sonic
-            (CSonic sonic, Maximillion maximillion) =
-                deployCSonic(sonicTokenDeploymentConfig, comptroller, pythOracle, api3Oracle, priceOracleAggregator);
+        //     // Deploy Sonic
+        //     (CSonic sonic, Maximillion maximillion) =
+        //         deployCSonic(sonicTokenDeploymentConfig, comptroller, pythOracle, api3Oracle, priceOracleAggregator);
 
-            // Set supply caps
-            {
-                CToken[] memory cTokens = new CToken[](1);
-                cTokens[0] = CToken(address(sonic));
-                uint256[] memory supplyCaps = new uint256[](1);
-                supplyCaps[0] = 12500 * 10 ** SONIC_DECIMALS;
-                comptroller._setMarketSupplyCaps(cTokens, supplyCaps);
-                console.log("supplyCaps", comptroller.supplyCaps(address(sonic)));
-            }
+        //     // Set supply caps
+        //     {
+        //         CToken[] memory cTokens = new CToken[](1);
+        //         cTokens[0] = CToken(address(sonic));
+        //         uint256[] memory supplyCaps = new uint256[](1);
+        //         supplyCaps[0] = 12500 * 10 ** SONIC_DECIMALS;
+        //         comptroller._setMarketSupplyCaps(cTokens, supplyCaps);
+        //         console.log("supplyCaps", comptroller.supplyCaps(address(sonic)));
+        //     }
 
-            // Set borrow caps
-            {
-                CToken[] memory cTokens = new CToken[](1);
-                cTokens[0] = CToken(address(sonic));
-                uint256[] memory borrowCaps = new uint256[](1);
-                borrowCaps[0] = 8500 * 10 ** SONIC_DECIMALS;
-                comptroller._setMarketBorrowCaps(cTokens, borrowCaps);
-                console.log("borrowCaps", comptroller.borrowCaps(address(sonic)));
-            }
-        }
-
-        // // Implementation contract for cErc20Delegator
-        // CErc20Delegate cErc20Delegate = new CErc20Delegate();
+        //     // Set borrow caps
+        //     {
+        //         CToken[] memory cTokens = new CToken[](1);
+        //         cTokens[0] = CToken(address(sonic));
+        //         uint256[] memory borrowCaps = new uint256[](1);
+        //         borrowCaps[0] = 8500 * 10 ** SONIC_DECIMALS;
+        //         comptroller._setMarketBorrowCaps(cTokens, borrowCaps);
+        //         console.log("borrowCaps", comptroller.borrowCaps(address(sonic)));
+        //     }
+        // }
 
         // JumpRateModelV2 usdcInterestRateModel;
 
@@ -166,7 +171,7 @@ contract DeploymentScript is Script {
         // uint256 protocolSeizeShareMantissaUSDC = 0.028e18;
         // uint8 usdcDecimals = 6;
 
-        // TokenDeploymentConfig memory sonicTokenDeploymentConfig = TokenDeploymentConfig(
+        // TokenDeploymentConfig memory cUsdcTokenDeploymentConfig = TokenDeploymentConfig(
         //     10 * 10 ** usdcDecimals, // $20 worth of USDC
         //     reserveFactorMantissaUSDC,
         //     protocolSeizeShareMantissaUSDC,
@@ -175,19 +180,15 @@ contract DeploymentScript is Script {
         //     usdcInterestRateModel
         // );
 
-        // UnderlyingTokenDeploymentConfig memory underlyingTokenDeploymentConfig =
-        //     UnderlyingTokenDeploymentConfig(USDC_ADDRESS, "MachFi USDC", "cUSDC", usdcDecimals);
+        // UnderlyingTokenDeploymentConfig memory underlyingUsdcTokenDeploymentConfig =
+        //     UnderlyingTokenDeploymentConfig(USDC_ADDRESS, "Mach USDC", "cUSDC", usdcDecimals);
 
         // {
+
         //     // Deploy USDC
         //     CErc20Delegator newCtoken = deployNewCErc20Token(
         //         underlyingTokenDeploymentConfig,
         //         sonicTokenDeploymentConfig,
-        //         address(cErc20Delegate),
-        //         comptroller,
-        //         pythOracle,
-        //         api3Oracle,
-        //         priceOracleAggregator,
         //         usdcInterestRateModel
         //     );
 
@@ -210,69 +211,62 @@ contract DeploymentScript is Script {
         //     }
         // }
 
-        // // WETH
-        // JumpRateModelV2 wethInterestRateModel;
+        // WETH
+        JumpRateModelV2 wethInterestRateModel;
 
-        // {
-        //     // $WETH Interest rate model & parameters
-        //     uint256 baseRatePerYearWETH = 0;
-        //     uint256 multiplierPerYearWETH = 0.035e18;
-        //     uint256 jumpMultiplierPerYearWETH = 7e18;
-        //     uint256 kinkWETH = 0.8e18;
+        {
+            // $WETH Interest rate model & parameters
+            uint256 baseRatePerYearWETH = 0;
+            uint256 multiplierPerYearWETH = 0.035e18;
+            uint256 jumpMultiplierPerYearWETH = 7e18;
+            uint256 kinkWETH = 0.8e18;
 
-        //     wethInterestRateModel = new JumpRateModelV2(
-        //         baseRatePerYearWETH, multiplierPerYearWETH, jumpMultiplierPerYearWETH, kinkWETH, admin
-        //     );
-        // }
+            wethInterestRateModel = new JumpRateModelV2(
+                baseRatePerYearWETH, multiplierPerYearWETH, jumpMultiplierPerYearWETH, kinkWETH, admin
+            );
+        }
 
-        // // Custom to $WETH
-        // uint256 reserveFactorMantissaWETH = 0.15e18;
-        // uint256 protocolSeizeShareMantissaWETH = 0.028e18;
-        // uint8 wethDecimals = 18;
+        // Custom to $WETH
+        uint256 reserveFactorMantissaWETH = 0.15e18;
+        uint256 protocolSeizeShareMantissaWETH = 0.028e18;
+        uint8 wethDecimals = 18;
 
-        // TokenDeploymentConfig memory wethTokenDeploymentConfig = TokenDeploymentConfig(
-        //     3 * 10 ** (wethDecimals - 3), // $10 worth of WETH -> 0.003 WETH
-        //     reserveFactorMantissaWETH,
-        //     protocolSeizeShareMantissaWETH,
-        //     ETH_PRICE_FEED_ID,
-        //     API3_ETH_PROXY,
-        //     wethInterestRateModel
-        // );
+        TokenDeploymentConfig memory cWethTokenDeploymentConfig = TokenDeploymentConfig(
+            3 * 10 ** (wethDecimals - 3), // $10 worth of WETH -> 0.003 WETH
+            reserveFactorMantissaWETH,
+            protocolSeizeShareMantissaWETH,
+            ETH_PRICE_FEED_ID,
+            API3_ETH_PROXY,
+            wethInterestRateModel
+        );
 
-        // underlyingTokenDeploymentConfig =
-        //     UnderlyingTokenDeploymentConfig(WETH_ADDRESS, "MachFi WETH", "cWETH", wethDecimals);
+        UnderlyingTokenDeploymentConfig memory underlyingWethTokenDeploymentConfig =
+            UnderlyingTokenDeploymentConfig(WETH_ADDRESS, "Mach WETH", "cWETH", wethDecimals);
 
-        // {
-        //     // Deploy WETH
-        //     CErc20Delegator newCtoken = deployNewCErc20Token(
-        //         underlyingTokenDeploymentConfig,
-        //         sonicTokenDeploymentConfig,
-        //         address(cErc20Delegate),
-        //         comptroller,
-        //         pythOracle,
-        //         api3Oracle,
-        //         priceOracleAggregator,
-        //         wethInterestRateModel
-        //     );
+        {
+            // Deploy WETH
+            CErc20Delegator newCtoken = deployNewCErc20Token(
+                underlyingWethTokenDeploymentConfig, cWethTokenDeploymentConfig, wethInterestRateModel
+            );
 
-        //     // Set supply caps
-        //     {
-        //         CToken[] memory cTokens = new CToken[](1);
-        //         cTokens[0] = CToken(address(newCtoken));
-        //         uint256[] memory supplyCaps = new uint256[](1);
-        //         supplyCaps[0] = 3 * 10 ** wethDecimals;
-        //         comptroller._setMarketSupplyCaps(cTokens, supplyCaps);
-        //     }
+            // Set supply caps
+            {
+                CToken[] memory cTokens = new CToken[](1);
+                cTokens[0] = CToken(address(newCtoken));
+                uint256[] memory supplyCaps = new uint256[](1);
+                supplyCaps[0] = 3 * 10 ** wethDecimals;
+                comptroller._setMarketSupplyCaps(cTokens, supplyCaps);
+            }
 
-        //     // Set borrow caps
-        //     {
-        //         CToken[] memory cTokens = new CToken[](1);
-        //         cTokens[0] = CToken(address(newCtoken));
-        //         uint256[] memory borrowCaps = new uint256[](1);
-        //         borrowCaps[0] = 25 * 10 ** (wethDecimals - 1); // 2.5 WETH
-        //         comptroller._setMarketBorrowCaps(cTokens, borrowCaps);
-        //     }
-        // }
+            // Set borrow caps
+            {
+                CToken[] memory cTokens = new CToken[](1);
+                cTokens[0] = CToken(address(newCtoken));
+                uint256[] memory borrowCaps = new uint256[](1);
+                borrowCaps[0] = 25 * 10 ** (wethDecimals - 1); // 2.5 WETH
+                comptroller._setMarketBorrowCaps(cTokens, borrowCaps);
+            }
+        }
 
         vm.stopBroadcast();
     }
@@ -439,129 +433,127 @@ contract DeploymentScript is Script {
         return (newCSonic, maximillion);
     }
 
-    // function deployNewCErc20Token(
-    //     UnderlyingTokenDeploymentConfig memory underlyingTokenDeploymentConfig,
-    //     TokenDeploymentConfig memory tokenDeploymentConfig,
-    //     address cErc20Delegate,
-    //     // @notice - Should be previously deployed
-    //     Comptroller comptroller,
-    //     PythOracle pythOracle,
-    //     API3Oracle api3Oracle,
-    //     PriceOracleAggregator priceOracleAggregator,
-    //     InterestRateModel interestRateModel
-    // ) public returns (CErc20Delegator newCtoken) {
-    //     // Follow Compound v2's initial exchange rate mantissa
-    //     uint256 initialExchangeRateMantissa =
-    //         10 ** (underlyingTokenDeploymentConfig.tokenDecimals + 18 - CTOKEN_DECIMALS) / 50;
+    function deployNewCErc20Token(
+        UnderlyingTokenDeploymentConfig memory underlyingTokenDeploymentConfig,
+        TokenDeploymentConfig memory tokenDeploymentConfig,
+        InterestRateModel interestRateModel
+    ) public returns (CErc20Delegator newCtoken) {
+        // Implementation contract for cErc20Delegator
+        CErc20Delegate cErc20Delegate = new CErc20Delegate();
+        console.log("CErc20Delegate deployed at", address(cErc20Delegate));
 
-    //     ERC20 underlyingErc20Token = ERC20(underlyingTokenDeploymentConfig.underlyingToken);
+        // Follow Compound v2's initial exchange rate mantissa
+        uint256 initialExchangeRateMantissa =
+            10 ** (underlyingTokenDeploymentConfig.tokenDecimals + 18 - CTOKEN_DECIMALS) / 50;
 
-    //     // 1. Check enough balance for underlying token
-    //     {
-    //         require(
-    //             underlyingErc20Token.balanceOf(admin) >= tokenDeploymentConfig.underlyingAmountToBurn,
-    //             "Not enough balance for underlying token"
-    //         );
-    //     }
+        ERC20 underlyingErc20Token = ERC20(underlyingTokenDeploymentConfig.underlyingToken);
 
-    //     // 2. Deploy CErc20Delegator
-    //     CErc20Delegator newCtoken = new CErc20Delegator(
-    //         underlyingTokenDeploymentConfig.underlyingToken,
-    //         comptroller,
-    //         tokenDeploymentConfig.interestRateModel,
-    //         initialExchangeRateMantissa,
-    //         underlyingTokenDeploymentConfig.name,
-    //         underlyingTokenDeploymentConfig.symbol,
-    //         CTOKEN_DECIMALS,
-    //         payable(admin),
-    //         address(0),
-    //         ""
-    //     );
-    //     console.log("CErc20Delegator deployed at", address(newCtoken));
+        // 1. Check enough balance for underlying token
+        {
+            require(
+                underlyingErc20Token.balanceOf(admin) >= tokenDeploymentConfig.underlyingAmountToBurn,
+                "Not enough balance for underlying token"
+            );
+        }
 
-    //     require(newCtoken.exchangeRateStored() == initialExchangeRateMantissa, "Initial exchange rate should be set");
+        // 2. Deploy CErc20Delegator
+        CErc20Delegator newCtoken = new CErc20Delegator(
+            underlyingTokenDeploymentConfig.underlyingToken,
+            comptroller,
+            tokenDeploymentConfig.interestRateModel,
+            initialExchangeRateMantissa,
+            underlyingTokenDeploymentConfig.name,
+            underlyingTokenDeploymentConfig.symbol,
+            CTOKEN_DECIMALS,
+            payable(admin),
+            address(cErc20Delegate),
+            ""
+        );
+        console.log("CErc20Delegator deployed at", address(newCtoken));
 
-    //     // 3. Deploy PriceOracleAggregator
-    //     {
-    //         console.log("Setting price feed id for asset:", underlyingTokenDeploymentConfig.underlyingToken);
-    //         pythOracle.setPriceFeedId(
-    //             underlyingTokenDeploymentConfig.underlyingToken, tokenDeploymentConfig.pythPriceFeedId
-    //         );
-    //         console.log("Setting api3 proxy address for asset:", underlyingTokenDeploymentConfig.underlyingToken);
-    //         api3Oracle.setApi3ProxyAddress(
-    //             underlyingTokenDeploymentConfig.underlyingToken, tokenDeploymentConfig.api3ProxyAddress
-    //         );
-    //     }
+        require(newCtoken.exchangeRateStored() == initialExchangeRateMantissa, "Initial exchange rate should be set");
 
-    //     // 4. Update price oracle aggregator
-    //     {
-    //         IOracleSource[] memory oracles = new IOracleSource[](2);
-    //         oracles[0] = api3Oracle;
-    //         oracles[1] = pythOracle;
-    //         priceOracleAggregator.updateTokenOracles(underlyingTokenDeploymentConfig.underlyingToken, oracles);
-    //     }
+        // 3. Deploy PriceOracleAggregator
+        {
+            console.log("Setting price feed id for asset:", underlyingTokenDeploymentConfig.underlyingToken);
+            pythOracle.setPriceFeedId(
+                underlyingTokenDeploymentConfig.underlyingToken, tokenDeploymentConfig.pythPriceFeedId
+            );
+            console.log("Setting api3 proxy address for asset:", underlyingTokenDeploymentConfig.underlyingToken);
+            api3Oracle.setApi3ProxyAddress(
+                underlyingTokenDeploymentConfig.underlyingToken, tokenDeploymentConfig.api3ProxyAddress
+            );
+        }
 
-    //     // 5. Set reserve factor & protocol seize share
-    //     {
-    //         require(
-    //             newCtoken._setReserveFactor(tokenDeploymentConfig.reserveFactorMantissa) == NO_ERROR,
-    //             "Failed to set reserve factor"
-    //         );
-    //         require(
-    //             newCtoken.reserveFactorMantissa() == tokenDeploymentConfig.reserveFactorMantissa,
-    //             "Reserve factor not set properly"
-    //         );
+        // 4. Update price oracle aggregator
+        {
+            IOracleSource[] memory oracles = new IOracleSource[](2);
+            oracles[0] = api3Oracle;
+            oracles[1] = pythOracle;
+            priceOracleAggregator.updateTokenOracles(underlyingTokenDeploymentConfig.underlyingToken, oracles);
+        }
 
-    //         require(
-    //             newCtoken._setProtocolSeizeShare(tokenDeploymentConfig.protocolSeizeShareMantissa) == NO_ERROR,
-    //             "Failed to set protocol seize share"
-    //         );
-    //         require(
-    //             newCtoken.protocolSeizeShareMantissa() == tokenDeploymentConfig.protocolSeizeShareMantissa,
-    //             "Protocol seize share not set properly"
-    //         );
-    //     }
+        // 5. Set reserve factor & protocol seize share
+        {
+            require(
+                newCtoken._setReserveFactor(tokenDeploymentConfig.reserveFactorMantissa) == NO_ERROR,
+                "Failed to set reserve factor"
+            );
+            require(
+                newCtoken.reserveFactorMantissa() == tokenDeploymentConfig.reserveFactorMantissa,
+                "Reserve factor not set properly"
+            );
 
-    //     // 6. Support market safely
-    //     // CAREFUL of "exchange rate" manipulation attacks on Compound v2 forks
-    //     // @dev - Before setting collateral factors -> https://x.com/hexagate_/status/1650177766187323394
-    //     // - Support market (ensuring CF = 0, by default)
-    //     // - Mint some cTokens
-    //     // - Burn them to make sure total supply doesn't go to zero
-    //     // - Then set collateral factors once market grows in size
-    //     {
-    //         underlyingErc20Token.approve(address(newCtoken), tokenDeploymentConfig.underlyingAmountToBurn);
-    //         require(comptroller._supportMarket(CToken(address(newCtoken))) == NO_ERROR, "Failed to support market");
-    //         require(newCtoken.mint(tokenDeploymentConfig.underlyingAmountToBurn) == NO_ERROR, "Failed to mint cTokens");
+            require(
+                newCtoken._setProtocolSeizeShare(tokenDeploymentConfig.protocolSeizeShareMantissa) == NO_ERROR,
+                "Failed to set protocol seize share"
+            );
+            require(
+                newCtoken.protocolSeizeShareMantissa() == tokenDeploymentConfig.protocolSeizeShareMantissa,
+                "Protocol seize share not set properly"
+            );
+        }
 
-    //         require(
-    //             newCtoken.balanceOf(admin)
-    //                 == (tokenDeploymentConfig.underlyingAmountToBurn * 1e18) / initialExchangeRateMantissa,
-    //             "Amount to burn not equal to expected initial exchange rate mantissa"
-    //         );
-    //         require(
-    //             newCtoken.totalSupply() == newCtoken.balanceOf(admin),
-    //             "Total supply should be equal to balance of admin"
-    //         );
+        // 6. Support market safely
+        // CAREFUL of "exchange rate" manipulation attacks on Compound v2 forks
+        // @dev - Before setting collateral factors -> https://x.com/hexagate_/status/1650177766187323394
+        // - Support market (ensuring CF = 0, by default)
+        // - Mint some cTokens
+        // - Burn them to make sure total supply doesn't go to zero
+        // - Then set collateral factors once market grows in size
+        {
+            underlyingErc20Token.approve(address(newCtoken), tokenDeploymentConfig.underlyingAmountToBurn);
+            require(comptroller._supportMarket(CToken(address(newCtoken))) == NO_ERROR, "Failed to support market");
+            require(newCtoken.mint(tokenDeploymentConfig.underlyingAmountToBurn) == NO_ERROR, "Failed to mint cTokens");
 
-    //         // Burn entire initial total balance of minted cTokens
-    //         require(newCtoken.transfer(address(0), newCtoken.balanceOf(admin)), "Failed to burn cTokens");
-    //     }
+            require(
+                newCtoken.balanceOf(admin)
+                    == (tokenDeploymentConfig.underlyingAmountToBurn * 1e18) / initialExchangeRateMantissa,
+                "Amount to burn not equal to expected initial exchange rate mantissa"
+            );
+            require(
+                newCtoken.totalSupply() == newCtoken.balanceOf(admin),
+                "Total supply should be equal to balance of admin"
+            );
 
-    //     // Check state of market afterwards all operations
-    //     {
-    //         require(
-    //             newCtoken.balanceOf(address(0)) == newCtoken.totalSupply(),
-    //             "All cTokens minted on initially should be burned"
-    //         );
-    //         (bool isListed, uint256 collateralFactorMantissa) = comptroller.markets(address(newCtoken));
-    //         require(isListed, "Market should be listed");
-    //         require(collateralFactorMantissa == 0, "Collateral factor should be 0");
-    //         require(priceOracleAggregator.getUnderlyingPrice(CToken(address(newCtoken))) > 0, "Price not set");
-    //     }
+            // Burn entire initial total balance of minted cTokens
+            require(newCtoken.transfer(address(0), newCtoken.balanceOf(admin)), "Failed to burn cTokens");
+        }
 
-    //     return newCtoken;
-    // }
+        // Check state of market afterwards all operations
+        {
+            require(
+                newCtoken.balanceOf(address(0)) == newCtoken.totalSupply(),
+                "All cTokens minted on initially should be burned"
+            );
+            (bool isListed, uint256 collateralFactorMantissa) = comptroller.markets(address(newCtoken));
+            require(isListed, "Market should be listed");
+            require(collateralFactorMantissa == 0, "Collateral factor should be 0");
+            require(priceOracleAggregator.getUnderlyingPrice(CToken(address(newCtoken))) > 0, "Price not set");
+        }
+
+        return newCtoken;
+    }
 
     function _deployPythOracle(address admin, address pythOracleAddress, uint256 stalenessPeriod)
         internal
