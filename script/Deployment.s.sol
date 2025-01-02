@@ -85,6 +85,11 @@ contract DeploymentScript is Script {
     // @notice - Deployer address
     address public constant admin = 0x9A74A959Ab5F706c1DFf414F580560287FcB7576;
 
+    // Deployed tokens
+    CSonic public constant cSonic = CSonic(payable(0x9F5d9f2FDDA7494aA58c90165cF8E6B070Fe92e6));
+    CErc20 public constant cUsdc = CErc20(0xC84F54B2dB8752f80DEE5b5A48b64a2774d2B445);
+    CErc20 public constant cWeth = CErc20(0x15eF11b942Cc14e582797A61e95D47218808800D);
+
     function run() public {
         vm.startBroadcast();
 
@@ -211,62 +216,62 @@ contract DeploymentScript is Script {
         //     }
         // }
 
-        // WETH
-        JumpRateModelV2 wethInterestRateModel;
+        // // WETH
+        // JumpRateModelV2 wethInterestRateModel;
 
-        {
-            // $WETH Interest rate model & parameters
-            uint256 baseRatePerYearWETH = 0;
-            uint256 multiplierPerYearWETH = 0.035e18;
-            uint256 jumpMultiplierPerYearWETH = 7e18;
-            uint256 kinkWETH = 0.8e18;
+        // {
+        //     // $WETH Interest rate model & parameters
+        //     uint256 baseRatePerYearWETH = 0;
+        //     uint256 multiplierPerYearWETH = 0.035e18;
+        //     uint256 jumpMultiplierPerYearWETH = 7e18;
+        //     uint256 kinkWETH = 0.8e18;
 
-            wethInterestRateModel = new JumpRateModelV2(
-                baseRatePerYearWETH, multiplierPerYearWETH, jumpMultiplierPerYearWETH, kinkWETH, admin
-            );
-        }
+        //     wethInterestRateModel = new JumpRateModelV2(
+        //         baseRatePerYearWETH, multiplierPerYearWETH, jumpMultiplierPerYearWETH, kinkWETH, admin
+        //     );
+        // }
 
-        // Custom to $WETH
-        uint256 reserveFactorMantissaWETH = 0.15e18;
-        uint256 protocolSeizeShareMantissaWETH = 0.028e18;
-        uint8 wethDecimals = 18;
+        // // Custom to $WETH
+        // uint256 reserveFactorMantissaWETH = 0.15e18;
+        // uint256 protocolSeizeShareMantissaWETH = 0.028e18;
+        // uint8 wethDecimals = 18;
 
-        TokenDeploymentConfig memory cWethTokenDeploymentConfig = TokenDeploymentConfig(
-            3 * 10 ** (wethDecimals - 3), // $10 worth of WETH -> 0.003 WETH
-            reserveFactorMantissaWETH,
-            protocolSeizeShareMantissaWETH,
-            ETH_PRICE_FEED_ID,
-            API3_ETH_PROXY,
-            wethInterestRateModel
-        );
+        // TokenDeploymentConfig memory cWethTokenDeploymentConfig = TokenDeploymentConfig(
+        //     3 * 10 ** (wethDecimals - 3), // $10 worth of WETH -> 0.003 WETH
+        //     reserveFactorMantissaWETH,
+        //     protocolSeizeShareMantissaWETH,
+        //     ETH_PRICE_FEED_ID,
+        //     API3_ETH_PROXY,
+        //     wethInterestRateModel
+        // );
 
-        UnderlyingTokenDeploymentConfig memory underlyingWethTokenDeploymentConfig =
-            UnderlyingTokenDeploymentConfig(WETH_ADDRESS, "Mach WETH", "cWETH", wethDecimals);
+        // UnderlyingTokenDeploymentConfig memory underlyingWethTokenDeploymentConfig =
+        //     UnderlyingTokenDeploymentConfig(WETH_ADDRESS, "Mach WETH", "cWETH", wethDecimals);
 
-        {
-            // Deploy WETH
-            CErc20Delegator newCtoken = deployNewCErc20Token(
-                underlyingWethTokenDeploymentConfig, cWethTokenDeploymentConfig, wethInterestRateModel
-            );
+        // {
+        //     // Deploy WETH
+        //     CErc20Delegator newCtoken = deployNewCErc20Token(
+        //         underlyingWethTokenDeploymentConfig, cWethTokenDeploymentConfig, wethInterestRateModel
+        //     );
 
-            // Set supply caps
-            {
-                CToken[] memory cTokens = new CToken[](1);
-                cTokens[0] = CToken(address(newCtoken));
-                uint256[] memory supplyCaps = new uint256[](1);
-                supplyCaps[0] = 3 * 10 ** wethDecimals;
-                comptroller._setMarketSupplyCaps(cTokens, supplyCaps);
-            }
+        //     // Set supply caps
+        //     {
+        //         CToken[] memory cTokens = new CToken[](1);
+        //         cTokens[0] = CToken(address(newCtoken));
+        //         uint256[] memory supplyCaps = new uint256[](1);
+        //         supplyCaps[0] = 3 * 10 ** wethDecimals;
+        //         comptroller._setMarketSupplyCaps(cTokens, supplyCaps);
+        //     }
 
-            // Set borrow caps
-            {
-                CToken[] memory cTokens = new CToken[](1);
-                cTokens[0] = CToken(address(newCtoken));
-                uint256[] memory borrowCaps = new uint256[](1);
-                borrowCaps[0] = 25 * 10 ** (wethDecimals - 1); // 2.5 WETH
-                comptroller._setMarketBorrowCaps(cTokens, borrowCaps);
-            }
-        }
+        //     // Set borrow caps
+        //     {
+        //         CToken[] memory cTokens = new CToken[](1);
+        //         cTokens[0] = CToken(address(newCtoken));
+        //         uint256[] memory borrowCaps = new uint256[](1);
+        //         borrowCaps[0] = 25 * 10 ** (wethDecimals - 1); // 2.5 WETH
+        //         comptroller._setMarketBorrowCaps(cTokens, borrowCaps);
+        //     }
+        // }
 
         vm.stopBroadcast();
     }
