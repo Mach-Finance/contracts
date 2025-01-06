@@ -71,8 +71,12 @@ contract DeploymentScript is Script {
     uint256 public constant PYTH_STALENESS_PERIOD = 1 hours;
 
     uint256 constant NO_ERROR = 0;
+
+    // Decimal places
     uint8 constant CTOKEN_DECIMALS = 8;
     uint8 constant SONIC_DECIMALS = 18;
+    uint8 constant USDC_DECIMALS = 6;
+    uint8 constant WETH_DECIMALS = 18;
 
     Comptroller comptrollerImplementation = Comptroller(0x147A9deA1DA08cFBb3D496A4e34C0D8C3b73Eaf8);
     Unitroller unitroller = Unitroller(payable(0x646F91AbD5Ab94B76d1F9C5D9490A2f6DDf25730));
