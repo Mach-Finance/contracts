@@ -43,60 +43,31 @@ contract DeploymentTest is Test {
     // These steps are to be used for simulation, before broadcasting them to the chain
     function test_setSafeAsAdmin() public {
         vm.prank(admin);
-        cUsdcDelegator._setPendingAdmin(payable(SAFE_MULTISIG_ADDRESS));
+        unitroller._setPendingAdmin(payable(SAFE_MULTISIG_ADDRESS));
         vm.prank(SAFE_MULTISIG_ADDRESS);
-        cUsdcDelegator._acceptAdmin();
+        unitroller._acceptAdmin();
 
         // Check admin is set
-        assertEq(cUsdcDelegator.admin(), SAFE_MULTISIG_ADDRESS);
+        assertEq(unitroller.admin(), SAFE_MULTISIG_ADDRESS);
 
-        vm.prank(admin);
-        cWethDelegator._setPendingAdmin(payable(SAFE_MULTISIG_ADDRESS));
-        vm.prank(SAFE_MULTISIG_ADDRESS);
-        cWethDelegator._acceptAdmin();
-
-        // Check admin is set
-        assertEq(cWethDelegator.admin(), SAFE_MULTISIG_ADDRESS);
-
+        // Old admin address should fail
         vm.startPrank(admin);
-        api3Oracle.transferOwnership(payable(SAFE_MULTISIG_ADDRESS));
-        pythOracle.transferOwnership(payable(SAFE_MULTISIG_ADDRESS));
-        priceOracleAggregator.transferOwnership(payable(SAFE_MULTISIG_ADDRESS));
+        require(comptroller._setCollateralFactor(cSonic, 0.3e18) == 1, "Old admin should fail");
         vm.stopPrank();
 
+        // Try admin only functions for comptroller
         vm.startPrank(SAFE_MULTISIG_ADDRESS);
-        api3Oracle.acceptOwnership();
-        pythOracle.acceptOwnership();
-        priceOracleAggregator.acceptOwnership();
-        vm.stopPrank();
+        require(comptroller._setCollateralFactor(cSonic, 0.3e18) == 0, "Failed to set collateral factor");
+        require(comptroller._setCollateralFactor(cUsdc, 0.4e18) == 0, "Failed to set collateral factor");
+        require(comptroller._setCollateralFactor(cWeth, 0.5e18) == 0, "Failed to set collateral factor");
 
-        // Check ownership is transferred
-        assertEq(api3Oracle.owner(), SAFE_MULTISIG_ADDRESS);
-        assertEq(pythOracle.owner(), SAFE_MULTISIG_ADDRESS);
-        assertEq(priceOracleAggregator.owner(), SAFE_MULTISIG_ADDRESS);
+        (, uint256 cSonicCollateralFactorMantissa) = comptroller.markets(address(cSonic));
+        (, uint256 cUsdcCollateralFactorMantissa) = comptroller.markets(address(cUsdc));
+        (, uint256 cWethCollateralFactorMantissa) = comptroller.markets(address(cWeth));
 
-        // Check no pending owner
-        assertEq(api3Oracle.pendingOwner(), address(0));
-        assertEq(pythOracle.pendingOwner(), address(0));
-        assertEq(priceOracleAggregator.pendingOwner(), address(0));
-
-        // Try onlyOwner functions
-        vm.startPrank(SAFE_MULTISIG_ADDRESS);
-        cUsdcDelegator._setReserveFactor(0.1e18);
-        assertEq(cUsdcDelegator.reserveFactorMantissa(), 0.1e18);
-
-        cWethDelegator._setReserveFactor(0.1e18);
-        assertEq(cWethDelegator.reserveFactorMantissa(), 0.1e18);
-
-        api3Oracle.transferOwnership(address(admin));
-        assertEq(api3Oracle.pendingOwner(), address(admin));
-
-        pythOracle.transferOwnership(address(admin));
-        assertEq(pythOracle.pendingOwner(), address(admin));
-
-        priceOracleAggregator.transferOwnership(address(admin));
-        assertEq(priceOracleAggregator.pendingOwner(), address(admin));
-
+        assertEq(cSonicCollateralFactorMantissa, 0.3e18);
+        assertEq(cUsdcCollateralFactorMantissa, 0.4e18);
+        assertEq(cWethCollateralFactorMantissa, 0.5e18);
         vm.stopPrank();
     }
 }

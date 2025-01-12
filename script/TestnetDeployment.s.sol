@@ -80,7 +80,7 @@ contract TestnetDeploymentScript is Script {
     address public admin;
 
     function run() public {
-        uint256 privateKey = vm.envUint("ADMIN_PRIVATE_KEY");
+        uint256 privateKey = vm.envUint("TESTNET_ADMIN_PRIVATE_KEY");
         admin = vm.addr(privateKey);
         vm.startBroadcast(privateKey);
 

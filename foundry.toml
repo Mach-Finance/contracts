@@ -11,7 +11,7 @@ evm_version = "cancun"
 extra_output = ["storageLayout"]
 
 [rpc_endpoints]
-sonic_testnet = "${SONIC_TESTNET_RPC_URL}"
+sonic_testnet = "${SONIC_BLAZE_TESTNET_RPC_URL}"
 sonic_mainnet = "${SONIC_MAINNET_RPC_URL}"
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
