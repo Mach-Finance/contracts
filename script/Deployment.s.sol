@@ -51,6 +51,7 @@ contract DeploymentScript is Script {
     bytes32 constant USDC_PRICE_FEED_ID = 0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a;
     bytes32 constant SOLV_PRICE_FEED_ID = 0xf253cf87dc7d5ed5aa14cba5a6e79aee8bcfaef885a0e1b807035a0bbecc36fa;
     bytes32 constant ETH_PRICE_FEED_ID = 0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace;
+    bytes32 constant S_PRICE_FEED_ID = 0xf490b178d0c85683b7a0f2388b40af2e6f7c90cbe0f96b31f315f08d0e5a2d6d;
 
     address public constant API3_USDC_PROXY = 0x6427406aAED75920aEB0419E361ef5cd6Eff509f;
     address public constant API3_ETH_PROXY = 0xaA5fbCdBa698DFc2f5F2268bCB01012262D7692D;
@@ -278,6 +279,26 @@ contract DeploymentScript is Script {
         // }
 
         vm.stopBroadcast();
+    }
+
+    function updateSupplyCaps(CToken[] memory cTokens, uint256[] memory supplyCaps) public {
+        comptroller._setMarketSupplyCaps(cTokens, supplyCaps);
+
+        for (uint256 i = 0; i < cTokens.length; i++) {
+            console.log("cTokens[i]", address(cTokens[i]));
+            console.log("supplyCaps[i]", supplyCaps[i]);
+            require(comptroller.supplyCaps(address(cTokens[i])) == supplyCaps[i], "Supply cap not set properly");
+        }
+    }
+
+    function updateBorrowCaps(CToken[] memory cTokens, uint256[] memory borrowCaps) public {
+        comptroller._setMarketBorrowCaps(cTokens, borrowCaps);
+
+        for (uint256 i = 0; i < cTokens.length; i++) {
+            console.log("cTokens[i]", address(cTokens[i]));
+            console.log("borrowCaps[i]", borrowCaps[i]);
+            require(comptroller.borrowCaps(address(cTokens[i])) == borrowCaps[i], "Borrow cap not set properly");
+        }
     }
 
     function deployComptroller() public returns (Comptroller comptrollerImplementation, Unitroller unitroller) {

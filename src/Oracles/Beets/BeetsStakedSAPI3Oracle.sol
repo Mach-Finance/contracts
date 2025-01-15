@@ -62,7 +62,6 @@ contract BeetsStakedSAPI3Oracle is IOracleSource, Ownable2Step {
         uint256 stSPrice = scaledPrice * rate;
 
         return (stSPrice, true);
-
     }
 
     function _getLatestPrice() internal view returns (uint256) {
@@ -84,7 +83,6 @@ contract BeetsStakedSAPI3Oracle is IOracleSource, Ownable2Step {
 
         return uint256(int256(price));
     }
-    
 
     function _getDecimals() internal view returns (uint256) {
         return ERC20(stS).decimals();
