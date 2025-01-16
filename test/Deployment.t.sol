@@ -35,6 +35,7 @@ contract DeploymentTest is Test {
     // API3 addresses
     address constant FTM_API3_PROXY_ADDRESS = 0x41Efded5ec14C2783a42dA9e8c7970aC313d5576;
     address constant S_API3_PROXY_ADDRESS = 0x726D2E87d73567ecA1b75C063Bd09c1493655918;
+    address constant NEW_S_API3_PROXY_ADDRESS = 0x2551A2a96988829D2a55c3b02b88E138023D1cE8;
 
     // Deployed tokens
     CSonic public constant cSonic = CSonic(payable(0x9F5d9f2FDDA7494aA58c90165cF8E6B070Fe92e6));
@@ -116,6 +117,32 @@ contract DeploymentTest is Test {
 
         require(sonicPrice > 0, "Sonic price is 0");
         require(sonicPrice != ftmPrice, "Sonic price is the same as FTM price");
+        vm.stopPrank();
+    }
+
+    function test_updateCSonicApi3Feed() public {
+        vm.startPrank(SAFE_MULTISIG_ADDRESS);
+
+        require(api3Oracle.tokenToApi3ProxyAddress(NATIVE_ASSET) == S_API3_PROXY_ADDRESS, "Previous price feed is $S");
+        // Update API3 Oracle to support OeV $S
+        api3Oracle.setApi3ProxyAddress(NATIVE_ASSET, NEW_S_API3_PROXY_ADDRESS);
+        require(
+            api3Oracle.tokenToApi3ProxyAddress(NATIVE_ASSET) == NEW_S_API3_PROXY_ADDRESS, "New price feed is not $S"
+        );
+
+        // Get underlying price
+        uint256 sonicPrice = priceOracleAggregator.getUnderlyingPrice(cSonic);
+        console.log("Sonic price", sonicPrice);
+
+        // Get price from Pyth and API3
+        (uint256 pythPrice,) = pythOracle.getPrice(NATIVE_ASSET);
+        (uint256 api3Price,) = api3Oracle.getPrice(NATIVE_ASSET);
+        console.log("Sonic price (PYTH)", pythPrice);
+        console.log("Sonic price (API3)", api3Price);
+
+        require(sonicPrice > 0, "Sonic price is 0");
+        require(pythPrice > 0, "Pyth price is 0");
+        require(api3Price > 0, "API3 price is 0");
         vm.stopPrank();
     }
 }
