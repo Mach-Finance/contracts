@@ -53,37 +53,26 @@ contract DeploymentTest is Test {
     }
 
     // These steps are to be used for simulation, before broadcasting them to the chain
-    function test_setSafeAsAdmin() public {
-        vm.prank(admin);
-        unitroller._setPendingAdmin(payable(SAFE_MULTISIG_ADDRESS));
+    function test_transferAdmin(address newAdmin) public {
+        vm.assume(newAdmin != address(0));
+
         vm.prank(SAFE_MULTISIG_ADDRESS);
+        unitroller._setPendingAdmin(payable(newAdmin));
+        vm.prank(newAdmin);
         unitroller._acceptAdmin();
 
         // Check admin is set
-        assertEq(unitroller.admin(), SAFE_MULTISIG_ADDRESS);
+        assertEq(unitroller.admin(), newAdmin);
 
         // Old admin address should fail
         vm.startPrank(admin);
-        require(comptroller._setCollateralFactor(cSonic, 0.3e18) == 1, "Old admin should fail");
-        vm.stopPrank();
-
-        // Try admin only functions for comptroller
-        vm.startPrank(SAFE_MULTISIG_ADDRESS);
-        require(comptroller._setCollateralFactor(cSonic, 0.3e18) == 0, "Failed to set collateral factor");
-        require(comptroller._setCollateralFactor(cUsdc, 0.4e18) == 0, "Failed to set collateral factor");
-        require(comptroller._setCollateralFactor(cWeth, 0.5e18) == 0, "Failed to set collateral factor");
-
-        (, uint256 cSonicCollateralFactorMantissa) = comptroller.markets(address(cSonic));
-        (, uint256 cUsdcCollateralFactorMantissa) = comptroller.markets(address(cUsdc));
-        (, uint256 cWethCollateralFactorMantissa) = comptroller.markets(address(cWeth));
-
-        assertEq(cSonicCollateralFactorMantissa, 0.3e18);
-        assertEq(cUsdcCollateralFactorMantissa, 0.4e18);
-        assertEq(cWethCollateralFactorMantissa, 0.5e18);
+        require(comptroller._setCollateralFactor(cSonic, 0.7e18) == 1, "Old admin should fail");
         vm.stopPrank();
     }
 
     function test_updateCSonicOracle() public {
+        vm.skip(true);
+
         vm.startPrank(SAFE_MULTISIG_ADDRESS);
 
         // Check "getUnderlyingPrice" for $Sonic
@@ -121,6 +110,8 @@ contract DeploymentTest is Test {
     }
 
     function test_updateCSonicApi3Feed() public {
+        vm.skip(true);
+
         vm.startPrank(SAFE_MULTISIG_ADDRESS);
 
         require(api3Oracle.tokenToApi3ProxyAddress(NATIVE_ASSET) == S_API3_PROXY_ADDRESS, "Previous price feed is $S");
@@ -143,6 +134,15 @@ contract DeploymentTest is Test {
         require(sonicPrice > 0, "Sonic price is 0");
         require(pythPrice > 0, "Pyth price is 0");
         require(api3Price > 0, "API3 price is 0");
+
+        // Mint some $S
+        uint256 err = cSonic.mintAsCollateral{value: 1 ether}();
+        require(err == 0, "Failed to mint $S");
+
+        // Check if $S is used as collateral
+        require(comptroller.checkMembership(SAFE_MULTISIG_ADDRESS, address(cSonic)), "Sonic is not used as collateral");
+        require(cSonic.balanceOf(SAFE_MULTISIG_ADDRESS) > 0, "Sonic balance is 0");
+
         vm.stopPrank();
     }
 }

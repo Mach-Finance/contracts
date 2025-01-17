@@ -11,6 +11,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 contract BeetsStakedSAPI3Oracle is IOracleSource, Ownable2Step {
     uint256 public constant PRICE_SCALE = 36;
     uint256 public constant API3_SCALE_FACTOR = 18;
+    uint256 public constant S_DECIMALS = 18;
     address public constant stS = 0xE5DA20F15420aD15DE0fa650600aFc998bbE3955;
 
     event StakedSAPI3ProxyAddressSet(address indexed api3ProxyAddress);
@@ -40,31 +41,40 @@ contract BeetsStakedSAPI3Oracle is IOracleSource, Ownable2Step {
         if (token != stS) return (0, false);
 
         // Get price of $S first here
-        uint256 price = _getLatestPrice();
-        uint256 decimals = _getDecimals();
+        uint256 price = _getSonicLatestPrice();
         uint256 scaledPrice;
 
         // Price from API3 is always multiplied by 1e18 base
-        if (API3_SCALE_FACTOR + decimals <= PRICE_SCALE) {
-            uint256 scale = 10 ** (PRICE_SCALE - API3_SCALE_FACTOR - decimals);
+        if (API3_SCALE_FACTOR + S_DECIMALS <= PRICE_SCALE) {
+            uint256 scale = 10 ** (PRICE_SCALE - API3_SCALE_FACTOR - S_DECIMALS);
             scaledPrice = price * scale;
         } else {
-            uint256 scale = 10 ** (API3_SCALE_FACTOR + decimals - PRICE_SCALE);
+            uint256 scale = 10 ** (API3_SCALE_FACTOR + S_DECIMALS - PRICE_SCALE);
             scaledPrice = price / scale;
         }
 
-        if (scaledPrice == 0) {
+        // Calculate price of stS based on exchange rate
+        uint256 stSPrice = _calculateStSPrice(scaledPrice);
+
+        if (stSPrice == 0) {
             return (0, false);
         }
-
-        // Calculate price of stS based on exchange rate
-        uint256 rate = IstS(stS).getRate();
-        uint256 stSPrice = scaledPrice * rate;
 
         return (stSPrice, true);
     }
 
-    function _getLatestPrice() internal view returns (uint256) {
+    /**
+     * @notice Calculate price of stS based on exchange rate
+     * @param sonicPrice Price of $S in USD
+     * @return stSPrice Price of stS in USD
+     */
+    function _calculateStSPrice(uint256 sonicPrice) internal view returns (uint256 stSPrice) {
+        uint256 rate = IstS(stS).getRate();
+        uint8 stSDecimals = ERC20(stS).decimals();
+        stSPrice = rate * sonicPrice / 10 ** (18 + stSDecimals - S_DECIMALS);
+    }
+
+    function _getSonicLatestPrice() internal view returns (uint256) {
         // API3 returns prices with scaled up by 1e18 base
         // https://docs.api3.org/dapps/integration/contract-integration.html#using-value
         (int224 price, uint32 timestamp) = sApi3Proxy.read();
@@ -82,10 +92,6 @@ contract BeetsStakedSAPI3Oracle is IOracleSource, Ownable2Step {
         }
 
         return uint256(int256(price));
-    }
-
-    function _getDecimals() internal view returns (uint256) {
-        return ERC20(stS).decimals();
     }
 
     /// Admin functions to set API3 oracle proxy address for a token ////
