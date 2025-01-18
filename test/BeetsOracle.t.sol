@@ -13,8 +13,9 @@ import {PriceOracleAggregator} from "../src/Oracles/PriceOracleAggregator.sol";
 import {BeetsStakedSAPI3Oracle} from "../src/Oracles/Beets/BeetsStakedSAPI3Oracle.sol";
 import {BeetsStakedSPythOracle} from "../src/Oracles/Beets/BeetsStakedSPythOracle.sol";
 import {IstS} from "../src/Oracles/Beets/IstS.sol";
+import {IError} from "./BaseTest.t.sol";
 
-contract BeetsStakedSAPI3OracleTest is Test {
+contract BeetsStakedSAPI3OracleTest is Test, IError {
     address public constant SAFE_MULTISIG_ADDRESS = 0x43410B419191AB7Df9d2e943995699f80898A058;
 
     Comptroller comptrollerImplementation = Comptroller(0x147A9deA1DA08cFBb3D496A4e34C0D8C3b73Eaf8);
@@ -25,10 +26,9 @@ contract BeetsStakedSAPI3OracleTest is Test {
     API3Oracle api3Oracle = API3Oracle(0xD458d8CA6e52E4D8E6938B6720bf7d9E1A42d175);
     PriceOracleAggregator priceOracleAggregator = PriceOracleAggregator(0x139Bf94a9cA4a3DB61a7Ce2022F7AECa12cEAa9d);
 
-    // @notice - Deployer address
-    address public constant admin = 0x9A74A959Ab5F706c1DFf414F580560287FcB7576;
     address public constant sApi3Proxy = 0x2551A2a96988829D2a55c3b02b88E138023D1cE8;
     bytes32 public constant sPriceFeedId = 0xf490b178d0c85683b7a0f2388b40af2e6f7c90cbe0f96b31f315f08d0e5a2d6d;
+    address public constant stS = 0xE5DA20F15420aD15DE0fa650600aFc998bbE3955;
 
     // Deployed tokens
     CSonic public constant cSonic = CSonic(payable(0x9F5d9f2FDDA7494aA58c90165cF8E6B070Fe92e6));
@@ -45,12 +45,13 @@ contract BeetsStakedSAPI3OracleTest is Test {
     // Beets stS oracle
     BeetsStakedSAPI3Oracle stSAPI3Oracle;
     BeetsStakedSPythOracle stSPythOracle;
-    address public constant stS = 0xE5DA20F15420aD15DE0fa650600aFc998bbE3955;
+    address public nonAdmin;
 
     function setUp() public {
         sonicMainnetFork = vm.createSelectFork(SONIC_MAINNET_RPC_URL, SONIC_BLOCK_NUMBER);
         stSAPI3Oracle = new BeetsStakedSAPI3Oracle(SAFE_MULTISIG_ADDRESS, sApi3Proxy);
         stSPythOracle = new BeetsStakedSPythOracle(SAFE_MULTISIG_ADDRESS, 1 hours);
+        nonAdmin = makeAddr("nonAdmin");
     }
 
     function test_stSPriceAPI3() public {
@@ -75,5 +76,64 @@ contract BeetsStakedSAPI3OracleTest is Test {
 
         // Exchange rate 1 $stS > 1 $S
         vm.assertGt(stSPrice, sPrice);
+    }
+
+    function test_updateStaleThreshold() public {
+        uint256 staleThreshold = 30 minutes;
+
+        // Non admin should not be able to update stale threshold
+        vm.prank(nonAdmin);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUnauthorizedAccount.selector, nonAdmin));
+        stSPythOracle.setStalePriceThreshold(staleThreshold);
+
+        // Admin (SAFE_MULTISIG_ADDRESS) should be able to update stale threshold
+        vm.prank(SAFE_MULTISIG_ADDRESS);
+        stSPythOracle.setStalePriceThreshold(staleThreshold);
+        vm.assertEq(stSPythOracle.stalePriceThreshold(), staleThreshold);
+
+        uint256 sPrice = priceOracleAggregator.getUnderlyingPrice(cSonic);
+        (uint256 stSPrice, bool isValid) = stSPythOracle.getPrice(address(stS));
+        vm.assertEq(isValid, true);
+        vm.assertGt(stSPrice, 0);
+
+        // Warp time to trigger stale price
+        vm.warp(block.timestamp + staleThreshold);
+
+        // Stale price should be returned
+        (stSPrice, isValid) = stSPythOracle.getPrice(address(stS));
+        vm.assertEq(isValid, false);
+        vm.assertEq(stSPrice, 0);
+    }
+
+    function test_transferOwnershipStSAPI3Oracle(address newOwner) public {
+        vm.assume(newOwner != SAFE_MULTISIG_ADDRESS);
+
+        vm.prank(SAFE_MULTISIG_ADDRESS);
+        stSAPI3Oracle.transferOwnership(newOwner);
+
+        // Check pending owner
+        vm.assertEq(stSAPI3Oracle.pendingOwner(), newOwner);
+
+        // Pending owner should be able to accept
+        vm.prank(newOwner);
+        stSAPI3Oracle.acceptOwnership();
+
+        vm.assertEq(stSAPI3Oracle.owner(), newOwner);
+    }
+
+    function test_transferOwnershipStSPythOracle(address newOwner) public {
+        vm.assume(newOwner != SAFE_MULTISIG_ADDRESS);
+
+        vm.prank(SAFE_MULTISIG_ADDRESS);
+        stSPythOracle.transferOwnership(newOwner);
+
+        // Check pending owner
+        vm.assertEq(stSPythOracle.pendingOwner(), newOwner);
+
+        // Pending owner should be able to accept
+        vm.prank(newOwner);
+        stSPythOracle.acceptOwnership();
+
+        vm.assertEq(stSPythOracle.owner(), newOwner);
     }
 }
