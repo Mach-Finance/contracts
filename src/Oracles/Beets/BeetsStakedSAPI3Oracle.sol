@@ -42,19 +42,9 @@ contract BeetsStakedSAPI3Oracle is IOracleSource, Ownable2Step {
 
         // Get price of $S first here
         uint256 price = _getSonicLatestPrice();
-        uint256 scaledPrice;
-
-        // Price from API3 is always multiplied by 1e18 base
-        if (API3_SCALE_FACTOR + S_DECIMALS <= PRICE_SCALE) {
-            uint256 scale = 10 ** (PRICE_SCALE - API3_SCALE_FACTOR - S_DECIMALS);
-            scaledPrice = price * scale;
-        } else {
-            uint256 scale = 10 ** (API3_SCALE_FACTOR + S_DECIMALS - PRICE_SCALE);
-            scaledPrice = price / scale;
-        }
 
         // Calculate price of stS based on exchange rate
-        uint256 stSPrice = _calculateStSPrice(scaledPrice);
+        uint256 stSPrice = _calculateStSPrice(price);
 
         if (stSPrice == 0) {
             return (0, false);

@@ -3,8 +3,10 @@ pragma solidity 0.8.22;
 
 import {Test} from "forge-std/Test.sol";
 import {CErc20Delegator} from "../src/CErc20Delegator.sol";
+import {CErc20Delegate} from "../src/CErc20Delegate.sol";
 import {CErc20} from "../src/CErc20.sol";
 import {CSonic} from "../src/CSonic.sol";
+import {CToken} from "../src/CToken.sol";
 import {Comptroller} from "../src/Comptroller.sol";
 import {Unitroller} from "../src/Unitroller.sol";
 import {PythOracle} from "../src/Oracles/Pyth/PythOracle.sol";
@@ -12,6 +14,12 @@ import {API3Oracle} from "../src/Oracles/API3/API3Oracle.sol";
 import {PriceOracleAggregator} from "../src/Oracles/PriceOracleAggregator.sol";
 import {IOracleSource} from "../src/Oracles/IOracleSource.sol";
 import {console} from "forge-std/console.sol";
+import {TokenDeploymentConfig, UnderlyingTokenDeploymentConfig} from "../script/Deployment.s.sol";
+import {BeetsStakedSAPI3Oracle} from "../src/Oracles/Beets/BeetsStakedSAPI3Oracle.sol";
+import {BeetsStakedSPythOracle} from "../src/Oracles/Beets/BeetsStakedSPythOracle.sol";
+import {InterestRateModel} from "../src/InterestRateModel.sol";
+import {JumpRateModelV2} from "../src/JumpRateModelV2.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract DeploymentTest is Test {
     address public constant SAFE_MULTISIG_ADDRESS = 0x43410B419191AB7Df9d2e943995699f80898A058;
@@ -37,6 +45,9 @@ contract DeploymentTest is Test {
     address constant S_API3_PROXY_ADDRESS = 0x726D2E87d73567ecA1b75C063Bd09c1493655918;
     address constant NEW_S_API3_PROXY_ADDRESS = 0x2551A2a96988829D2a55c3b02b88E138023D1cE8;
 
+    // Underlying tokens
+    address constant ST_S_ADDRESS = 0xE5DA20F15420aD15DE0fa650600aFc998bbE3955;
+
     // Deployed tokens
     CSonic public constant cSonic = CSonic(payable(0x9F5d9f2FDDA7494aA58c90165cF8E6B070Fe92e6));
     CErc20 public constant cUsdc = CErc20(0xC84F54B2dB8752f80DEE5b5A48b64a2774d2B445);
@@ -46,6 +57,14 @@ contract DeploymentTest is Test {
     CErc20Delegator cWethDelegator = CErc20Delegator(payable(address(cWeth)));
 
     string SONIC_MAINNET_RPC_URL = vm.envString("SONIC_MAINNET_RPC_URL");
+
+    uint256 constant NO_ERROR = 0;
+    uint8 constant CTOKEN_DECIMALS = 8;
+    uint8 constant SONIC_DECIMALS = 18;
+
+    // Follow Compound v2's initial exchange rate mantissa
+    uint256 initialExchangeRateMantissa = 10 ** (SONIC_DECIMALS + 18 - CTOKEN_DECIMALS) / 50;
+
     uint256 sonicMainnetFork;
 
     function setUp() public {
@@ -144,5 +163,253 @@ contract DeploymentTest is Test {
         require(cSonic.balanceOf(SAFE_MULTISIG_ADDRESS) > 0, "Sonic balance is 0");
 
         vm.stopPrank();
+    }
+
+    function test_deployStS() public {
+        vm.startPrank(admin);
+
+        uint256 baseRatePerYearStS = 0.02e18;
+        uint256 multiplierPerYearStS = 0.07e18;
+        uint256 jumpMultiplierPerYearStS = 3e18;
+        uint256 kinkStS = 0.5e18;
+
+        JumpRateModelV2 stSInterestRateModel = new JumpRateModelV2(
+            baseRatePerYearStS, multiplierPerYearStS, jumpMultiplierPerYearStS, kinkStS, SAFE_MULTISIG_ADDRESS
+        );
+
+        uint256 reserveFactorMantissaStS = 0.15e18;
+        uint256 protocolSeizeShareMantissaStS = 0.028e18;
+        uint8 stSDecimals = 18;
+
+        TokenDeploymentConfig memory cStSTokenDeploymentConfig = TokenDeploymentConfig(
+            25 * 10 ** stSDecimals, // 25 $S
+            reserveFactorMantissaStS,
+            protocolSeizeShareMantissaStS,
+            S_PRICE_FEED_ID,
+            NEW_S_API3_PROXY_ADDRESS,
+            stSInterestRateModel
+        );
+
+        UnderlyingTokenDeploymentConfig memory underlyingStSTokenDeploymentConfig =
+            UnderlyingTokenDeploymentConfig(ST_S_ADDRESS, "Mach stS", "cstS", stSDecimals);
+
+        CErc20Delegator cstS = deployOnlyCErc20Token(underlyingStSTokenDeploymentConfig, cStSTokenDeploymentConfig);
+
+        vm.stopPrank();
+
+        // Switch to SAFE_MULTISIG_ADDRESS to support market & update oracles
+        vm.startPrank(SAFE_MULTISIG_ADDRESS);
+
+        // Deploy API3 oracle for $stS
+        BeetsStakedSAPI3Oracle stSAPI3Oracle =
+            new BeetsStakedSAPI3Oracle(SAFE_MULTISIG_ADDRESS, NEW_S_API3_PROXY_ADDRESS);
+
+        // Deploy Pyth oracle for $stS
+        BeetsStakedSPythOracle stSPythOracle = new BeetsStakedSPythOracle(SAFE_MULTISIG_ADDRESS, 24 hours);
+
+        // Update price oracle aggregator
+        IOracleSource[] memory stSOracles = new IOracleSource[](2);
+        stSOracles[0] = stSAPI3Oracle;
+        stSOracles[1] = stSPythOracle;
+        priceOracleAggregator.updateTokenOracles(ST_S_ADDRESS, stSOracles);
+
+        // Set reserve factor & protocol seize share
+        cstS._setReserveFactor(reserveFactorMantissaStS);
+        cstS._setProtocolSeizeShare(protocolSeizeShareMantissaStS);
+
+        require(cstS.reserveFactorMantissa() == reserveFactorMantissaStS, "Reserve factor not set properly");
+        require(
+            cstS.protocolSeizeShareMantissa() == protocolSeizeShareMantissaStS, "Protocol seize share not set properly"
+        );
+
+        ERC20 stS = ERC20(ST_S_ADDRESS);
+
+        {
+            stS.approve(address(cstS), cStSTokenDeploymentConfig.underlyingAmountToBurn);
+            require(comptroller._supportMarket(CToken(address(cstS))) == NO_ERROR, "Failed to support market");
+            require(cstS.mint(cStSTokenDeploymentConfig.underlyingAmountToBurn) == NO_ERROR, "Failed to mint cTokens");
+
+            require(
+                cstS.balanceOf(SAFE_MULTISIG_ADDRESS)
+                    == (cStSTokenDeploymentConfig.underlyingAmountToBurn * 1e18) / initialExchangeRateMantissa,
+                "Amount to burn not equal to expected initial exchange rate mantissa"
+            );
+            require(
+                cstS.totalSupply() == cstS.balanceOf(SAFE_MULTISIG_ADDRESS),
+                "Total supply should be equal to balance of admin"
+            );
+
+            // Burn entire initial total balance of minted cTokens
+            require(cstS.transfer(address(0), cstS.balanceOf(SAFE_MULTISIG_ADDRESS)), "Failed to burn cTokens");
+        }
+
+        // Check state of market afterwards all operations
+        {
+            require(
+                cstS.balanceOf(address(0)) == cstS.totalSupply(), "All cTokens minted on initially should be burned"
+            );
+            (bool isListed, uint256 collateralFactorMantissa) = comptroller.markets(address(cstS));
+            require(isListed, "Market should be listed");
+            require(collateralFactorMantissa == 0, "Collateral factor should be 0");
+            require(priceOracleAggregator.getUnderlyingPrice(CToken(address(cstS))) > 0, "Price not set");
+        }
+
+        vm.stopPrank();
+    }
+
+    function deployOnlyCErc20Token(
+        UnderlyingTokenDeploymentConfig memory underlyingTokenDeploymentConfig,
+        TokenDeploymentConfig memory tokenDeploymentConfig
+    ) public returns (CErc20Delegator newCtoken) {
+        // Implementation contract for cErc20Delegator
+        CErc20Delegate cErc20Delegate = new CErc20Delegate();
+        console.log("CErc20Delegate deployed at", address(cErc20Delegate));
+
+        ERC20 underlyingErc20Token = ERC20(underlyingTokenDeploymentConfig.underlyingToken);
+
+        // 1. Deploy CErc20Delegator
+        CErc20Delegator newCtoken = new CErc20Delegator(
+            underlyingTokenDeploymentConfig.underlyingToken,
+            comptroller,
+            tokenDeploymentConfig.interestRateModel,
+            initialExchangeRateMantissa,
+            underlyingTokenDeploymentConfig.name,
+            underlyingTokenDeploymentConfig.symbol,
+            CTOKEN_DECIMALS,
+            payable(SAFE_MULTISIG_ADDRESS),
+            address(cErc20Delegate),
+            ""
+        );
+        console.log("CErc20Delegator deployed at", address(newCtoken));
+
+        require(newCtoken.exchangeRateStored() == initialExchangeRateMantissa, "Initial exchange rate should be set");
+        require(newCtoken.totalSupply() == 0, "Total supply should be 0");
+        require(newCtoken.comptroller() == comptroller, "Comptroller should be set");
+        require(
+            newCtoken.interestRateModel() == tokenDeploymentConfig.interestRateModel,
+            "Interest rate model should be set"
+        );
+        require(newCtoken.exchangeRateStored() == initialExchangeRateMantissa, "Initial exchange rate should be set");
+        require(newCtoken.decimals() == CTOKEN_DECIMALS, "Decimals should be set");
+
+        return newCtoken;
+    }
+
+    function deployNewCErc20Token(
+        UnderlyingTokenDeploymentConfig memory underlyingTokenDeploymentConfig,
+        TokenDeploymentConfig memory tokenDeploymentConfig,
+        InterestRateModel interestRateModel
+    ) public returns (CErc20Delegator newCtoken) {
+        // Implementation contract for cErc20Delegator
+        CErc20Delegate cErc20Delegate = new CErc20Delegate();
+        console.log("CErc20Delegate deployed at", address(cErc20Delegate));
+
+        ERC20 underlyingErc20Token = ERC20(underlyingTokenDeploymentConfig.underlyingToken);
+
+        // 1. Check enough balance for underlying token
+        {
+            require(
+                underlyingErc20Token.balanceOf(SAFE_MULTISIG_ADDRESS) >= tokenDeploymentConfig.underlyingAmountToBurn,
+                "Not enough balance for underlying token"
+            );
+        }
+
+        // 2. Deploy CErc20Delegator
+        CErc20Delegator newCtoken = new CErc20Delegator(
+            underlyingTokenDeploymentConfig.underlyingToken,
+            comptroller,
+            tokenDeploymentConfig.interestRateModel,
+            initialExchangeRateMantissa,
+            underlyingTokenDeploymentConfig.name,
+            underlyingTokenDeploymentConfig.symbol,
+            CTOKEN_DECIMALS,
+            payable(SAFE_MULTISIG_ADDRESS),
+            address(cErc20Delegate),
+            ""
+        );
+        console.log("CErc20Delegator deployed at", address(newCtoken));
+
+        require(newCtoken.exchangeRateStored() == initialExchangeRateMantissa, "Initial exchange rate should be set");
+
+        // 3. Deploy PriceOracleAggregator
+        {
+            console.log("Setting price feed id for asset:", underlyingTokenDeploymentConfig.underlyingToken);
+            pythOracle.setPriceFeedId(
+                underlyingTokenDeploymentConfig.underlyingToken, tokenDeploymentConfig.pythPriceFeedId
+            );
+            console.log("Setting api3 proxy address for asset:", underlyingTokenDeploymentConfig.underlyingToken);
+            api3Oracle.setApi3ProxyAddress(
+                underlyingTokenDeploymentConfig.underlyingToken, tokenDeploymentConfig.api3ProxyAddress
+            );
+        }
+
+        // 4. Update price oracle aggregator
+        {
+            IOracleSource[] memory oracles = new IOracleSource[](2);
+            oracles[0] = api3Oracle;
+            oracles[1] = pythOracle;
+            priceOracleAggregator.updateTokenOracles(underlyingTokenDeploymentConfig.underlyingToken, oracles);
+        }
+
+        // 5. Set reserve factor & protocol seize share
+        {
+            require(
+                newCtoken._setReserveFactor(tokenDeploymentConfig.reserveFactorMantissa) == NO_ERROR,
+                "Failed to set reserve factor"
+            );
+            require(
+                newCtoken.reserveFactorMantissa() == tokenDeploymentConfig.reserveFactorMantissa,
+                "Reserve factor not set properly"
+            );
+
+            require(
+                newCtoken._setProtocolSeizeShare(tokenDeploymentConfig.protocolSeizeShareMantissa) == NO_ERROR,
+                "Failed to set protocol seize share"
+            );
+            require(
+                newCtoken.protocolSeizeShareMantissa() == tokenDeploymentConfig.protocolSeizeShareMantissa,
+                "Protocol seize share not set properly"
+            );
+        }
+
+        // 6. Support market safely
+        // CAREFUL of "exchange rate" manipulation attacks on Compound v2 forks
+        // @dev - Before setting collateral factors -> https://x.com/hexagate_/status/1650177766187323394
+        // - Support market (ensuring CF = 0, by default)
+        // - Mint some cTokens
+        // - Burn them to make sure total supply doesn't go to zero
+        // - Then set collateral factors once market grows in size
+        {
+            underlyingErc20Token.approve(address(newCtoken), tokenDeploymentConfig.underlyingAmountToBurn);
+            require(comptroller._supportMarket(CToken(address(newCtoken))) == NO_ERROR, "Failed to support market");
+            require(newCtoken.mint(tokenDeploymentConfig.underlyingAmountToBurn) == NO_ERROR, "Failed to mint cTokens");
+
+            require(
+                newCtoken.balanceOf(admin)
+                    == (tokenDeploymentConfig.underlyingAmountToBurn * 1e18) / initialExchangeRateMantissa,
+                "Amount to burn not equal to expected initial exchange rate mantissa"
+            );
+            require(
+                newCtoken.totalSupply() == newCtoken.balanceOf(admin),
+                "Total supply should be equal to balance of admin"
+            );
+
+            // Burn entire initial total balance of minted cTokens
+            require(newCtoken.transfer(address(0), newCtoken.balanceOf(admin)), "Failed to burn cTokens");
+        }
+
+        // Check state of market afterwards all operations
+        {
+            require(
+                newCtoken.balanceOf(address(0)) == newCtoken.totalSupply(),
+                "All cTokens minted on initially should be burned"
+            );
+            (bool isListed, uint256 collateralFactorMantissa) = comptroller.markets(address(newCtoken));
+            require(isListed, "Market should be listed");
+            require(collateralFactorMantissa == 0, "Collateral factor should be 0");
+            require(priceOracleAggregator.getUnderlyingPrice(CToken(address(newCtoken))) > 0, "Price not set");
+        }
+
+        return newCtoken;
     }
 }

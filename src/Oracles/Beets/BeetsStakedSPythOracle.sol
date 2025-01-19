@@ -37,14 +37,16 @@ contract BeetsStakedSPythOracle is IOracleSource, Ownable2Step {
     function getPrice(address token) external view returns (uint256, bool) {
         if (token != stS) return (0, false);
 
+        // Feed Decimals for $S is +8
         (uint256 price, uint256 feedDecimals) = _getSonicLatestPrice();
+        uint256 tokenFeedDecimals = feedDecimals + S_DECIMALS;
         uint256 scaledPrice;
 
-        if (feedDecimals + S_DECIMALS <= PRICE_SCALE) {
-            uint256 scale = 10 ** (PRICE_SCALE - feedDecimals - S_DECIMALS);
+        if (tokenFeedDecimals <= PRICE_SCALE) {
+            uint256 scale = 10 ** (PRICE_SCALE - tokenFeedDecimals);
             scaledPrice = price * scale;
         } else {
-            uint256 scale = 10 ** (feedDecimals + S_DECIMALS - PRICE_SCALE);
+            uint256 scale = 10 ** (tokenFeedDecimals - PRICE_SCALE);
             scaledPrice = price / scale;
         }
 
