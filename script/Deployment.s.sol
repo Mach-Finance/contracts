@@ -23,6 +23,10 @@ import {ComptrollerV1Storage} from "../src/ComptrollerStorage.sol";
 
 import {console} from "forge-std/console.sol";
 
+import {CErc20Delegator} from "../src/CErc20Delegator.sol";
+import {BeetsStakedSAPI3Oracle} from "../src/Oracles/Beets/BeetsStakedSAPI3Oracle.sol";
+import {BeetsStakedSPythOracle} from "../src/Oracles/Beets/BeetsStakedSPythOracle.sol";
+
 struct TokenDeploymentConfig {
     uint256 underlyingAmountToBurn;
     uint256 reserveFactorMantissa;
@@ -96,6 +100,7 @@ contract DeploymentScript is Script {
     CSonic public constant cSonic = CSonic(payable(0x9F5d9f2FDDA7494aA58c90165cF8E6B070Fe92e6));
     CErc20 public constant cUsdc = CErc20(0xC84F54B2dB8752f80DEE5b5A48b64a2774d2B445);
     CErc20 public constant cWeth = CErc20(0x15eF11b942Cc14e582797A61e95D47218808800D);
+    CErc20 public constant cStS = CErc20(0xbAA06b4D6f45ac93B6c53962Ea861e6e3052DC74);
 
     function run() public {
         vm.startBroadcast();
@@ -280,35 +285,54 @@ contract DeploymentScript is Script {
         //     }
         // }
 
-        // stS
-        uint256 baseRatePerYearStS = 0.02e18;
-        uint256 multiplierPerYearStS = 0.07e18;
-        uint256 jumpMultiplierPerYearStS = 3e18;
-        uint256 kinkStS = 0.5e18;
+        // // stS
+        // uint256 baseRatePerYearStS = 0.02e18;
+        // uint256 multiplierPerYearStS = 0.07e18;
+        // uint256 jumpMultiplierPerYearStS = 3e18;
+        // uint256 kinkStS = 0.5e18;
 
-        JumpRateModelV2 stSInterestRateModel = new JumpRateModelV2(
-            baseRatePerYearStS, multiplierPerYearStS, jumpMultiplierPerYearStS, kinkStS, SAFE_MULTISIG_ADDRESS
-        );
+        // JumpRateModelV2 stSInterestRateModel = new JumpRateModelV2(
+        //     baseRatePerYearStS, multiplierPerYearStS, jumpMultiplierPerYearStS, kinkStS, SAFE_MULTISIG_ADDRESS
+        // );
 
-        uint256 reserveFactorMantissaStS = 0.15e18;
-        uint256 protocolSeizeShareMantissaStS = 0.028e18;
-        uint8 stSDecimals = 18;
+        // uint256 reserveFactorMantissaStS = 0.15e18;
+        // uint256 protocolSeizeShareMantissaStS = 0.028e18;
+        // uint8 stSDecimals = 18;
 
-        TokenDeploymentConfig memory cStSTokenDeploymentConfig = TokenDeploymentConfig(
-            25 * 10 ** stSDecimals, // 25 $S
-            reserveFactorMantissaStS,
-            protocolSeizeShareMantissaStS,
-            S_PRICE_FEED_ID,
-            API3_S_PROXY,
-            stSInterestRateModel
-        );
+        // TokenDeploymentConfig memory cStSTokenDeploymentConfig = TokenDeploymentConfig(
+        //     25 * 10 ** stSDecimals, // 25 $S
+        //     reserveFactorMantissaStS,
+        //     protocolSeizeShareMantissaStS,
+        //     S_PRICE_FEED_ID,
+        //     API3_S_PROXY,
+        //     stSInterestRateModel
+        // );
 
-        UnderlyingTokenDeploymentConfig memory underlyingStSTokenDeploymentConfig =
-            UnderlyingTokenDeploymentConfig(ST_S_ADDRESS, "Mach stS", "cstS", stSDecimals);
+        // UnderlyingTokenDeploymentConfig memory underlyingStSTokenDeploymentConfig =
+        //     UnderlyingTokenDeploymentConfig(ST_S_ADDRESS, "Mach stS", "cstS", stSDecimals);
 
-        // Deploy stS
-        CErc20Delegator cstS = deployOnlyCErc20Token(underlyingStSTokenDeploymentConfig, cStSTokenDeploymentConfig);
-        console.log("cstS deployed at", address(cstS));
+        // // Deploy stS
+        // CErc20Delegator cstS = deployOnlyCErc20Token(underlyingStSTokenDeploymentConfig, cStSTokenDeploymentConfig);
+        // console.log("cstS deployed at", address(cstS));
+
+        //  // Deploy API3 oracle for $stS
+        // BeetsStakedSAPI3Oracle stSAPI3Oracle =
+        //     new BeetsStakedSAPI3Oracle(SAFE_MULTISIG_ADDRESS, API3_S_PROXY);
+        // console.log("stSAPI3Oracle deployed at", address(stSAPI3Oracle));
+
+        // (uint256 stSPrice, bool isValid) = stSAPI3Oracle.getPrice(ST_S_ADDRESS);
+        // require(stSPrice > 0, "stSAPI3Oracle price not set");
+        // require(isValid, "stSAPI3Oracle price is not valid");
+        // console.log("stSAPI3Oracle price", stSPrice);
+
+        // // Deploy Pyth oracle for $stS
+        // BeetsStakedSPythOracle stSPythOracle = new BeetsStakedSPythOracle(SAFE_MULTISIG_ADDRESS, 24 hours);
+        // console.log("stSPythOracle deployed at", address(stSPythOracle));
+
+        // (stSPrice, isValid) = stSPythOracle.getPrice(ST_S_ADDRESS);
+        // require(stSPrice > 0, "stSPythOracle price not set");
+        // require(isValid, "stSPythOracle price is not valid");
+        // console.log("stSPythOracle price", stSPrice);
 
         vm.stopBroadcast();
     }
@@ -655,6 +679,12 @@ contract DeploymentScript is Script {
         );
         require(newCtoken.exchangeRateStored() == initialExchangeRateMantissa, "Initial exchange rate should be set");
         require(newCtoken.decimals() == CTOKEN_DECIMALS, "Decimals should be set");
+
+        // Print out token info
+        CErc20 newCErc20 = CErc20(address(newCtoken));
+        console.log("Token name:", newCErc20.name());
+        console.log("Token symbol:", newCErc20.symbol());
+        console.log("Token decimals:", newCErc20.decimals());
 
         return newCtoken;
     }

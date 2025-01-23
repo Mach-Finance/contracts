@@ -52,6 +52,7 @@ contract DeploymentTest is Test {
     CSonic public constant cSonic = CSonic(payable(0x9F5d9f2FDDA7494aA58c90165cF8E6B070Fe92e6));
     CErc20 public constant cUsdc = CErc20(0xC84F54B2dB8752f80DEE5b5A48b64a2774d2B445);
     CErc20 public constant cWeth = CErc20(0x15eF11b942Cc14e582797A61e95D47218808800D);
+    CErc20 public constant cStS = CErc20(0xbAA06b4D6f45ac93B6c53962Ea861e6e3052DC74);
 
     CErc20Delegator cUsdcDelegator = CErc20Delegator(payable(address(cUsdc)));
     CErc20Delegator cWethDelegator = CErc20Delegator(payable(address(cWeth)));
@@ -411,5 +412,55 @@ contract DeploymentTest is Test {
         }
 
         return newCtoken;
+    }
+
+    function test_updateCollateralFactor() public {
+        vm.startPrank(SAFE_MULTISIG_ADDRESS);
+
+        // Check collateral factor of $S
+        (bool isSonicListed, uint256 sonicCollateralFactorMantissa) = comptroller.markets(address(cSonic));
+        require(isSonicListed, "Market should be listed");
+        require(sonicCollateralFactorMantissa == 0.7e18, "Collateral factor should be 0.7e18");
+
+        console.log("Sonic collateral factor", sonicCollateralFactorMantissa);
+
+        // Update collateral factor of $stS
+        comptroller._setCollateralFactor(cStS, 0.6e18);
+        (bool isStSListed, uint256 stSCollateralFactorMantissa) = comptroller.markets(address(cStS));
+        require(isStSListed, "Market should be listed");
+        require(stSCollateralFactorMantissa == 0.6e18, "Collateral factor should be 0.6e18");
+        vm.stopPrank();
+    }
+
+    function test_setMarketSupplyAndBorrowCaps() public {
+        vm.startPrank(SAFE_MULTISIG_ADDRESS);
+        // Update market borrows cap
+        {
+            CToken[] memory cTokens = new CToken[](1);
+            cTokens[0] = CToken(address(cStS));
+            uint256[] memory borrowCaps = new uint256[](1);
+            borrowCaps[0] = 50000 * 10 ** SONIC_DECIMALS;
+            comptroller._setMarketBorrowCaps(cTokens, borrowCaps);
+
+            console.log("Borrow cap set for cStS", comptroller.borrowCaps(address(cStS)));
+            require(
+                comptroller.borrowCaps(address(cStS)) == 50000 * 10 ** SONIC_DECIMALS, "Borrow cap not set properly"
+            );
+        }
+
+        {
+            CToken[] memory cTokens = new CToken[](1);
+            cTokens[0] = CToken(address(cStS));
+            uint256[] memory supplyCaps = new uint256[](1);
+            supplyCaps[0] = 75000 * 10 ** SONIC_DECIMALS;
+            comptroller._setMarketSupplyCaps(cTokens, supplyCaps);
+
+            console.log("Supply cap set for cStS", comptroller.supplyCaps(address(cStS)));
+            require(
+                comptroller.supplyCaps(address(cStS)) == 75000 * 10 ** SONIC_DECIMALS, "Supply cap not set properly"
+            );
+        }
+
+        vm.stopPrank();
     }
 }
