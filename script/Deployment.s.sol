@@ -23,6 +23,10 @@ import {ComptrollerV1Storage} from "../src/ComptrollerStorage.sol";
 
 import {console} from "forge-std/console.sol";
 
+import {CErc20Delegator} from "../src/CErc20Delegator.sol";
+import {BeetsStakedSAPI3Oracle} from "../src/Oracles/Beets/BeetsStakedSAPI3Oracle.sol";
+import {BeetsStakedSPythOracle} from "../src/Oracles/Beets/BeetsStakedSPythOracle.sol";
+
 struct TokenDeploymentConfig {
     uint256 underlyingAmountToBurn;
     uint256 reserveFactorMantissa;
@@ -51,15 +55,18 @@ contract DeploymentScript is Script {
     bytes32 constant USDC_PRICE_FEED_ID = 0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a;
     bytes32 constant SOLV_PRICE_FEED_ID = 0xf253cf87dc7d5ed5aa14cba5a6e79aee8bcfaef885a0e1b807035a0bbecc36fa;
     bytes32 constant ETH_PRICE_FEED_ID = 0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace;
+    bytes32 constant S_PRICE_FEED_ID = 0xf490b178d0c85683b7a0f2388b40af2e6f7c90cbe0f96b31f315f08d0e5a2d6d;
 
     address public constant API3_USDC_PROXY = 0x6427406aAED75920aEB0419E361ef5cd6Eff509f;
     address public constant API3_ETH_PROXY = 0xaA5fbCdBa698DFc2f5F2268bCB01012262D7692D;
     address public constant API3_WBTC_PROXY = 0xcc897BD298FDc90c298e7509818a4d9f4F8ca0D1;
     address public constant API3_SOLVBTC_PROXY = 0x867A57D7bf23D464c5CE9B31af097F2E7a75d078;
     address public constant API3_FTM_PROXY = 0x41Efded5ec14C2783a42dA9e8c7970aC313d5576;
+    address public constant API3_S_PROXY = 0x2551A2a96988829D2a55c3b02b88E138023D1cE8;
 
     address public constant USDC_ADDRESS = 0x29219dd400f2Bf60E5a23d13Be72B486D4038894;
     address public constant WETH_ADDRESS = 0x50c42dEAcD8Fc9773493ED674b675bE577f2634b;
+    address public constant ST_S_ADDRESS = 0xE5DA20F15420aD15DE0fa650600aFc998bbE3955;
 
     // TODO: Update this to the actual WBTC address
     address public constant WBTC_ADDRESS = address(123);
@@ -93,6 +100,7 @@ contract DeploymentScript is Script {
     CSonic public constant cSonic = CSonic(payable(0x9F5d9f2FDDA7494aA58c90165cF8E6B070Fe92e6));
     CErc20 public constant cUsdc = CErc20(0xC84F54B2dB8752f80DEE5b5A48b64a2774d2B445);
     CErc20 public constant cWeth = CErc20(0x15eF11b942Cc14e582797A61e95D47218808800D);
+    CErc20 public constant cStS = CErc20(0xbAA06b4D6f45ac93B6c53962Ea861e6e3052DC74);
 
     function run() public {
         vm.startBroadcast();
@@ -277,7 +285,76 @@ contract DeploymentScript is Script {
         //     }
         // }
 
+        // // stS
+        // uint256 baseRatePerYearStS = 0.02e18;
+        // uint256 multiplierPerYearStS = 0.07e18;
+        // uint256 jumpMultiplierPerYearStS = 3e18;
+        // uint256 kinkStS = 0.5e18;
+
+        // JumpRateModelV2 stSInterestRateModel = new JumpRateModelV2(
+        //     baseRatePerYearStS, multiplierPerYearStS, jumpMultiplierPerYearStS, kinkStS, SAFE_MULTISIG_ADDRESS
+        // );
+
+        // uint256 reserveFactorMantissaStS = 0.15e18;
+        // uint256 protocolSeizeShareMantissaStS = 0.028e18;
+        // uint8 stSDecimals = 18;
+
+        // TokenDeploymentConfig memory cStSTokenDeploymentConfig = TokenDeploymentConfig(
+        //     25 * 10 ** stSDecimals, // 25 $S
+        //     reserveFactorMantissaStS,
+        //     protocolSeizeShareMantissaStS,
+        //     S_PRICE_FEED_ID,
+        //     API3_S_PROXY,
+        //     stSInterestRateModel
+        // );
+
+        // UnderlyingTokenDeploymentConfig memory underlyingStSTokenDeploymentConfig =
+        //     UnderlyingTokenDeploymentConfig(ST_S_ADDRESS, "Mach stS", "cstS", stSDecimals);
+
+        // // Deploy stS
+        // CErc20Delegator cstS = deployOnlyCErc20Token(underlyingStSTokenDeploymentConfig, cStSTokenDeploymentConfig);
+        // console.log("cstS deployed at", address(cstS));
+
+        //  // Deploy API3 oracle for $stS
+        // BeetsStakedSAPI3Oracle stSAPI3Oracle =
+        //     new BeetsStakedSAPI3Oracle(SAFE_MULTISIG_ADDRESS, API3_S_PROXY);
+        // console.log("stSAPI3Oracle deployed at", address(stSAPI3Oracle));
+
+        // (uint256 stSPrice, bool isValid) = stSAPI3Oracle.getPrice(ST_S_ADDRESS);
+        // require(stSPrice > 0, "stSAPI3Oracle price not set");
+        // require(isValid, "stSAPI3Oracle price is not valid");
+        // console.log("stSAPI3Oracle price", stSPrice);
+
+        // // Deploy Pyth oracle for $stS
+        // BeetsStakedSPythOracle stSPythOracle = new BeetsStakedSPythOracle(SAFE_MULTISIG_ADDRESS, 24 hours);
+        // console.log("stSPythOracle deployed at", address(stSPythOracle));
+
+        // (stSPrice, isValid) = stSPythOracle.getPrice(ST_S_ADDRESS);
+        // require(stSPrice > 0, "stSPythOracle price not set");
+        // require(isValid, "stSPythOracle price is not valid");
+        // console.log("stSPythOracle price", stSPrice);
+
         vm.stopBroadcast();
+    }
+
+    function updateSupplyCaps(CToken[] memory cTokens, uint256[] memory supplyCaps) public {
+        comptroller._setMarketSupplyCaps(cTokens, supplyCaps);
+
+        for (uint256 i = 0; i < cTokens.length; i++) {
+            console.log("cTokens[i]", address(cTokens[i]));
+            console.log("supplyCaps[i]", supplyCaps[i]);
+            require(comptroller.supplyCaps(address(cTokens[i])) == supplyCaps[i], "Supply cap not set properly");
+        }
+    }
+
+    function updateBorrowCaps(CToken[] memory cTokens, uint256[] memory borrowCaps) public {
+        comptroller._setMarketBorrowCaps(cTokens, borrowCaps);
+
+        for (uint256 i = 0; i < cTokens.length; i++) {
+            console.log("cTokens[i]", address(cTokens[i]));
+            console.log("borrowCaps[i]", borrowCaps[i]);
+            require(comptroller.borrowCaps(address(cTokens[i])) == borrowCaps[i], "Borrow cap not set properly");
+        }
     }
 
     function deployComptroller() public returns (Comptroller comptrollerImplementation, Unitroller unitroller) {
@@ -564,6 +641,54 @@ contract DeploymentScript is Script {
         return newCtoken;
     }
 
+    function deployOnlyCErc20Token(
+        UnderlyingTokenDeploymentConfig memory underlyingTokenDeploymentConfig,
+        TokenDeploymentConfig memory tokenDeploymentConfig
+    ) public returns (CErc20Delegator newCtoken) {
+        // Implementation contract for cErc20Delegator
+        CErc20Delegate cErc20Delegate = new CErc20Delegate();
+        console.log("CErc20Delegate deployed at", address(cErc20Delegate));
+
+        // Follow Compound v2's initial exchange rate mantissa
+        uint256 initialExchangeRateMantissa =
+            10 ** (underlyingTokenDeploymentConfig.tokenDecimals + 18 - CTOKEN_DECIMALS) / 50;
+
+        ERC20 underlyingErc20Token = ERC20(underlyingTokenDeploymentConfig.underlyingToken);
+
+        // 1. Deploy CErc20Delegator
+        CErc20Delegator newCtoken = new CErc20Delegator(
+            underlyingTokenDeploymentConfig.underlyingToken,
+            comptroller,
+            tokenDeploymentConfig.interestRateModel,
+            initialExchangeRateMantissa,
+            underlyingTokenDeploymentConfig.name,
+            underlyingTokenDeploymentConfig.symbol,
+            CTOKEN_DECIMALS,
+            payable(admin),
+            address(cErc20Delegate),
+            ""
+        );
+        console.log("CErc20Delegator deployed at", address(newCtoken));
+
+        require(newCtoken.exchangeRateStored() == initialExchangeRateMantissa, "Initial exchange rate should be set");
+        require(newCtoken.totalSupply() == 0, "Total supply should be 0");
+        require(newCtoken.comptroller() == comptroller, "Comptroller should be set");
+        require(
+            newCtoken.interestRateModel() == tokenDeploymentConfig.interestRateModel,
+            "Interest rate model should be set"
+        );
+        require(newCtoken.exchangeRateStored() == initialExchangeRateMantissa, "Initial exchange rate should be set");
+        require(newCtoken.decimals() == CTOKEN_DECIMALS, "Decimals should be set");
+
+        // Print out token info
+        CErc20 newCErc20 = CErc20(address(newCtoken));
+        console.log("Token name:", newCErc20.name());
+        console.log("Token symbol:", newCErc20.symbol());
+        console.log("Token decimals:", newCErc20.decimals());
+
+        return newCtoken;
+    }
+
     function _deployPythOracle(address admin, address pythOracleAddress, uint256 stalenessPeriod)
         internal
         returns (PythOracle pythOracle)
@@ -584,5 +709,17 @@ contract DeploymentScript is Script {
 
         api3Oracle = new API3Oracle(admin, underlyingTokens, api3ProxyAddresses);
         console.log("API3Oracle deployed at", address(api3Oracle));
+    }
+
+    function _deployJumpRateModel(
+        uint256 baseRatePerYear,
+        uint256 multiplierPerYear,
+        uint256 jumpMultiplierPerYear,
+        uint256 kink,
+        address admin
+    ) internal returns (JumpRateModelV2 jumpRateModel) {
+        jumpRateModel = new JumpRateModelV2(baseRatePerYear, multiplierPerYear, jumpMultiplierPerYear, kink, admin);
+
+        return jumpRateModel;
     }
 }
