@@ -39,11 +39,14 @@ contract DeploymentTest is Test {
     // Pyth price feed ids
     bytes32 constant FTM_PRICE_FEED_ID = 0x5c6c0d2386e3352356c3ab84434fafb5ea067ac2678a38a338c4a69ddc4bdb0c;
     bytes32 constant S_PRICE_FEED_ID = 0xf490b178d0c85683b7a0f2388b40af2e6f7c90cbe0f96b31f315f08d0e5a2d6d;
+    bytes32 constant USDC_PRICE_FEED_ID = 0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a;
 
     // API3 addresses
+    address constant API3_USDC_PROXY = 0x6427406aAED75920aEB0419E361ef5cd6Eff509f;
     address constant FTM_API3_PROXY_ADDRESS = 0x41Efded5ec14C2783a42dA9e8c7970aC313d5576;
     address constant S_API3_PROXY_ADDRESS = 0x726D2E87d73567ecA1b75C063Bd09c1493655918;
     address constant NEW_S_API3_PROXY_ADDRESS = 0x2551A2a96988829D2a55c3b02b88E138023D1cE8;
+    address constant SCUSD_ADDRESS = 0xd3DCe716f3eF535C5Ff8d041c1A41C3bd89b97aE;
 
     // Underlying tokens
     address constant ST_S_ADDRESS = 0xE5DA20F15420aD15DE0fa650600aFc998bbE3955;
@@ -53,6 +56,7 @@ contract DeploymentTest is Test {
     CErc20 public constant cUsdc = CErc20(0xC84F54B2dB8752f80DEE5b5A48b64a2774d2B445);
     CErc20 public constant cWeth = CErc20(0x15eF11b942Cc14e582797A61e95D47218808800D);
     CErc20 public constant cStS = CErc20(0xbAA06b4D6f45ac93B6c53962Ea861e6e3052DC74);
+    CErc20 public constant cscUsd = CErc20(0xe5A79Db6623BCA3C65337dd6695Ae6b1f53Bec45);
 
     CErc20Delegator cUsdcDelegator = CErc20Delegator(payable(address(cUsdc)));
     CErc20Delegator cWethDelegator = CErc20Delegator(payable(address(cWeth)));
@@ -62,6 +66,8 @@ contract DeploymentTest is Test {
     uint256 constant NO_ERROR = 0;
     uint8 constant CTOKEN_DECIMALS = 8;
     uint8 constant SONIC_DECIMALS = 18;
+    uint8 constant ST_S_DECIMALS = 18;
+    uint8 constant SCUSD_DECIMALS = 6;
 
     // Follow Compound v2's initial exchange rate mantissa
     uint256 initialExchangeRateMantissa = 10 ** (SONIC_DECIMALS + 18 - CTOKEN_DECIMALS) / 50;
@@ -162,6 +168,105 @@ contract DeploymentTest is Test {
         // Check if $S is used as collateral
         require(comptroller.checkMembership(SAFE_MULTISIG_ADDRESS, address(cSonic)), "Sonic is not used as collateral");
         require(cSonic.balanceOf(SAFE_MULTISIG_ADDRESS) > 0, "Sonic balance is 0");
+
+        vm.stopPrank();
+    }
+
+    function test_deployScUsd() public {
+        vm.startPrank(admin);
+
+        uint256 baseRatePerYearScUsd = 0;
+        uint256 multiplierPerYearScUsd = 0.06e18;
+        uint256 jumpMultiplierPerYearScUsd = 12e18;
+        uint256 kinkScUsd = 0.8e18;
+
+        JumpRateModelV2 scUsdInterestRateModel = new JumpRateModelV2(
+            baseRatePerYearScUsd, multiplierPerYearScUsd, jumpMultiplierPerYearScUsd, kinkScUsd, SAFE_MULTISIG_ADDRESS
+        );
+
+        uint256 reserveFactorMantissaScUsd = 0.2e18;
+        uint256 protocolSeizeShareMantissaScUsd = 0.028e18;
+        uint8 scUsdDecimals = 6;
+
+        TokenDeploymentConfig memory cScUsdTokenDeploymentConfig = TokenDeploymentConfig(
+            20 * 10 ** scUsdDecimals, // 20 $USDC
+            reserveFactorMantissaScUsd,
+            protocolSeizeShareMantissaScUsd,
+            USDC_PRICE_FEED_ID,
+            API3_USDC_PROXY,
+            scUsdInterestRateModel
+        );
+
+        UnderlyingTokenDeploymentConfig memory underlyingScUsdTokenDeploymentConfig =
+            UnderlyingTokenDeploymentConfig(SCUSD_ADDRESS, "Mach scUSD", "cscUsd", scUsdDecimals);
+
+        CErc20Delegator cscUsd =
+            deployOnlyCErc20Token(underlyingScUsdTokenDeploymentConfig, cScUsdTokenDeploymentConfig);
+
+        vm.stopPrank();
+
+        // Switch to SAFE_MULTISIG_ADDRESS to support market & update oracles
+        vm.startPrank(SAFE_MULTISIG_ADDRESS);
+
+        // Update Pyth Oracle to support $scUSD
+        pythOracle.setPriceFeedId(SCUSD_ADDRESS, USDC_PRICE_FEED_ID);
+
+        // Update API3 Oracle to support $scUSD
+        api3Oracle.setApi3ProxyAddress(SCUSD_ADDRESS, API3_USDC_PROXY);
+
+        // Update price oracle aggregator
+        IOracleSource[] memory scUsdOracles = new IOracleSource[](2);
+        scUsdOracles[0] = api3Oracle;
+        scUsdOracles[1] = pythOracle;
+
+        priceOracleAggregator.updateTokenOracles(SCUSD_ADDRESS, scUsdOracles);
+
+        // Set reserve factor & protocol seize share
+        cscUsd._setReserveFactor(reserveFactorMantissaScUsd);
+        cscUsd._setProtocolSeizeShare(protocolSeizeShareMantissaScUsd);
+
+        require(cscUsd.reserveFactorMantissa() == reserveFactorMantissaScUsd, "Reserve factor not set properly");
+        require(
+            cscUsd.protocolSeizeShareMantissa() == protocolSeizeShareMantissaScUsd,
+            "Protocol seize share not set properly"
+        );
+
+        ERC20 scUsd = ERC20(SCUSD_ADDRESS);
+
+        {
+            scUsd.approve(address(cscUsd), cScUsdTokenDeploymentConfig.underlyingAmountToBurn);
+            require(comptroller._supportMarket(CToken(address(cscUsd))) == NO_ERROR, "Failed to support market");
+            require(
+                cscUsd.mint(cScUsdTokenDeploymentConfig.underlyingAmountToBurn) == NO_ERROR, "Failed to mint cTokens"
+            );
+
+            require(
+                cscUsd.balanceOf(SAFE_MULTISIG_ADDRESS)
+                    == (cScUsdTokenDeploymentConfig.underlyingAmountToBurn * 1e18) / initialExchangeRateMantissa,
+                "Amount to burn not equal to expected initial exchange rate mantissa"
+            );
+            require(
+                cscUsd.totalSupply() == cscUsd.balanceOf(SAFE_MULTISIG_ADDRESS),
+                "Total supply should be equal to balance of admin"
+            );
+
+            // Burn entire initial total balance of minted cTokens
+            require(cscUsd.transfer(address(0), cscUsd.balanceOf(SAFE_MULTISIG_ADDRESS)), "Failed to burn cTokens");
+        }
+
+        // Check state of market afterwards all operations
+        {
+            require(
+                cscUsd.balanceOf(address(0)) == cscUsd.totalSupply(), "All cTokens minted on initially should be burned"
+            );
+            (bool isListed, uint256 collateralFactorMantissa) = comptroller.markets(address(cscUsd));
+            require(isListed, "Market should be listed");
+            require(collateralFactorMantissa == 0, "Collateral factor should be 0");
+
+            uint256 price = priceOracleAggregator.getUnderlyingPrice(CToken(address(cscUsd)));
+            console.log("Price of cscUsd", price);
+            require(price > 0, "Price not set");
+        }
 
         vm.stopPrank();
     }
@@ -434,30 +539,41 @@ contract DeploymentTest is Test {
 
     function test_setMarketSupplyAndBorrowCaps() public {
         vm.startPrank(SAFE_MULTISIG_ADDRESS);
-        // Update market borrows cap
+        // Update market supply cap
         {
             CToken[] memory cTokens = new CToken[](1);
             cTokens[0] = CToken(address(cStS));
-            uint256[] memory borrowCaps = new uint256[](1);
-            borrowCaps[0] = 50000 * 10 ** SONIC_DECIMALS;
-            comptroller._setMarketBorrowCaps(cTokens, borrowCaps);
 
-            console.log("Borrow cap set for cStS", comptroller.borrowCaps(address(cStS)));
-            require(
-                comptroller.borrowCaps(address(cStS)) == 50000 * 10 ** SONIC_DECIMALS, "Borrow cap not set properly"
-            );
-        }
-
-        {
-            CToken[] memory cTokens = new CToken[](1);
-            cTokens[0] = CToken(address(cStS));
             uint256[] memory supplyCaps = new uint256[](1);
-            supplyCaps[0] = 75000 * 10 ** SONIC_DECIMALS;
+            supplyCaps[0] = 500000000000000000000000;
             comptroller._setMarketSupplyCaps(cTokens, supplyCaps);
 
             console.log("Supply cap set for cStS", comptroller.supplyCaps(address(cStS)));
             require(
-                comptroller.supplyCaps(address(cStS)) == 75000 * 10 ** SONIC_DECIMALS, "Supply cap not set properly"
+                comptroller.supplyCaps(address(cStS)) == 500000 * 10 ** ST_S_DECIMALS, "Supply cap not set properly"
+            );
+        }
+
+        // Update market borrow cap
+        {
+            CToken[] memory cTokens = new CToken[](2);
+            cTokens[0] = CToken(address(cStS));
+            cTokens[1] = CToken(address(cSonic));
+
+            uint256[] memory borrowCaps = new uint256[](2);
+            borrowCaps[0] = 250000000000000000000000;
+            borrowCaps[1] = 750000000000000000000000;
+
+            comptroller._setMarketBorrowCaps(cTokens, borrowCaps);
+
+            console.log("Borrow cap set for cStS", comptroller.borrowCaps(address(cStS)));
+            console.log("Borrow cap set for cSonic", comptroller.borrowCaps(address(cSonic)));
+            require(
+                comptroller.borrowCaps(address(cStS)) == 250000 * 10 ** ST_S_DECIMALS, "Borrow cap not set properly"
+            );
+
+            require(
+                comptroller.borrowCaps(address(cSonic)) == 750000 * 10 ** SONIC_DECIMALS, "Borrow cap not set properly"
             );
         }
 

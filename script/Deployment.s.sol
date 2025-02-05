@@ -67,6 +67,8 @@ contract DeploymentScript is Script {
     address public constant USDC_ADDRESS = 0x29219dd400f2Bf60E5a23d13Be72B486D4038894;
     address public constant WETH_ADDRESS = 0x50c42dEAcD8Fc9773493ED674b675bE577f2634b;
     address public constant ST_S_ADDRESS = 0xE5DA20F15420aD15DE0fa650600aFc998bbE3955;
+    address public constant SOLV_BTC_ADDRESS = 0x541FD749419CA806a8bc7da8ac23D346f2dF8B77;
+    address public constant SCUSD_ADDRESS = 0xd3DCe716f3eF535C5Ff8d041c1A41C3bd89b97aE;
 
     // TODO: Update this to the actual WBTC address
     address public constant WBTC_ADDRESS = address(123);
@@ -84,6 +86,8 @@ contract DeploymentScript is Script {
     uint8 constant SONIC_DECIMALS = 18;
     uint8 constant USDC_DECIMALS = 6;
     uint8 constant WETH_DECIMALS = 18;
+    uint8 constant SOLV_BTC_DECIMALS = 18;
+    uint8 constant SCUSD_DECIMALS = 6;
 
     Comptroller comptrollerImplementation = Comptroller(0x147A9deA1DA08cFBb3D496A4e34C0D8C3b73Eaf8);
     Unitroller unitroller = Unitroller(payable(0x646F91AbD5Ab94B76d1F9C5D9490A2f6DDf25730));
@@ -334,6 +338,74 @@ contract DeploymentScript is Script {
         // require(isValid, "stSPythOracle price is not valid");
         // console.log("stSPythOracle price", stSPrice);
 
+        // // SolvBTC
+        // uint256 baseRatePerYearSolvBtc = 0;
+        // uint256 multiplierPerYearSolvBtc = 0.065e18;
+        // uint256 jumpMultiplierPerYearSolvBtc = 6e18;
+        // uint256 kinkSolvBtc = 0.7e18;
+
+        // JumpRateModelV2 solvBtcInterestRateModel = new JumpRateModelV2(
+        //     baseRatePerYearSolvBtc, multiplierPerYearSolvBtc, jumpMultiplierPerYearSolvBtc, kinkSolvBtc, SAFE_MULTISIG_ADDRESS
+        // );
+
+        // console.log("solvBtcInterestRateModel deployed at", address(solvBtcInterestRateModel));
+
+        // uint256 reserveFactorMantissaSolvBtc = 0.15e18;
+        // uint256 protocolSeizeShareMantissaSolvBtc = 0.028e18;
+
+        // UnderlyingTokenDeploymentConfig memory underlyingSolvBtcTokenDeploymentConfig =
+        //     UnderlyingTokenDeploymentConfig(SOLV_BTC_ADDRESS, "Mach solvBTC", "cSolvBtc", SOLV_BTC_DECIMALS);
+
+        // TokenDeploymentConfig memory cSolvBtcTokenDeploymentConfig = TokenDeploymentConfig(
+        //     2 * 1e14, // (20 / 100k) * 1e18
+        //     reserveFactorMantissaSolvBtc,
+        //     protocolSeizeShareMantissaSolvBtc,
+        //     SOLV_PRICE_FEED_ID,
+        //     API3_SOLVBTC_PROXY,
+        //     solvBtcInterestRateModel
+        // );
+
+        // CErc20Delegator cSolvBtc = deployOnlyCErc20Token(underlyingSolvBtcTokenDeploymentConfig, cSolvBtcTokenDeploymentConfig);
+        // console.log("cSolvBtc deployed at", address(cSolvBtc));
+
+        // // scUSD
+        // uint256 baseRatePerYearScUsd = 0;
+        // uint256 multiplierPerYearScUsd = 0.06e18;
+        // uint256 jumpMultiplierPerYearScUsd = 12e18;
+        // uint256 kinkScUsd = 0.8e18;
+
+        // JumpRateModelV2 scUsdInterestRateModel = new JumpRateModelV2(
+        //     baseRatePerYearScUsd, multiplierPerYearScUsd, jumpMultiplierPerYearScUsd, kinkScUsd, SAFE_MULTISIG_ADDRESS
+        // );
+
+        // uint256 reserveFactorMantissaScUsd = 0.2e18;
+        // uint256 protocolSeizeShareMantissaScUsd = 0.028e18;
+
+        // UnderlyingTokenDeploymentConfig memory underlyingScUsdTokenDeploymentConfig =
+        //     UnderlyingTokenDeploymentConfig(SCUSD_ADDRESS, "Mach scUSD", "cscUSD", SCUSD_DECIMALS);
+
+        // TokenDeploymentConfig memory cScUsdTokenDeploymentConfig = TokenDeploymentConfig(
+        //     20 * 10 ** SCUSD_DECIMALS, // 20 $scUSD
+        //     reserveFactorMantissaScUsd,
+        //     protocolSeizeShareMantissaScUsd,
+        //     USDC_PRICE_FEED_ID,
+        //     API3_USDC_PROXY,
+        //     scUsdInterestRateModel
+        // );
+
+        // CErc20Delegator cScUsd = deployOnlyCErc20Token(underlyingScUsdTokenDeploymentConfig, cScUsdTokenDeploymentConfig);
+        // console.log("cScUsd deployed at", address(cScUsd));
+
+        // // Check initial exchange rate
+        // console.log("initial exchange rate", cScUsd.exchangeRateStored());
+        // console.log("totalSupply", cScUsd.totalSupply());
+
+        // // Check admin of CErc20Delegator
+        // console.log("admin of CErc20Delegator", cScUsd.admin());
+        // console.log("SAFE_MULTISIG_ADDRESS", SAFE_MULTISIG_ADDRESS);
+
+        // require(cScUsd.admin() == SAFE_MULTISIG_ADDRESS, "Admin of CErc20Delegator should be SAFE_MULTISIG_ADDRESS");
+
         vm.stopBroadcast();
     }
 
@@ -551,7 +623,7 @@ contract DeploymentScript is Script {
             underlyingTokenDeploymentConfig.name,
             underlyingTokenDeploymentConfig.symbol,
             CTOKEN_DECIMALS,
-            payable(admin),
+            payable(SAFE_MULTISIG_ADDRESS),
             address(cErc20Delegate),
             ""
         );
@@ -664,7 +736,7 @@ contract DeploymentScript is Script {
             underlyingTokenDeploymentConfig.name,
             underlyingTokenDeploymentConfig.symbol,
             CTOKEN_DECIMALS,
-            payable(admin),
+            payable(SAFE_MULTISIG_ADDRESS),
             address(cErc20Delegate),
             ""
         );
