@@ -40,13 +40,20 @@ contract DeploymentTest is Test {
     bytes32 constant FTM_PRICE_FEED_ID = 0x5c6c0d2386e3352356c3ab84434fafb5ea067ac2678a38a338c4a69ddc4bdb0c;
     bytes32 constant S_PRICE_FEED_ID = 0xf490b178d0c85683b7a0f2388b40af2e6f7c90cbe0f96b31f315f08d0e5a2d6d;
     bytes32 constant USDC_PRICE_FEED_ID = 0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a;
+    bytes32 constant WBTC_PRICE_FEED_ID = 0xc9d8b075a5c69303365ae23633d4e085199bf5c520a3b90fed1322a0342ffc33;
+    bytes32 constant SCETH_PRICE_FEED_ID = 0x8bb5e69ed1ab19642a0e7e851b1ed7b3579d0548bc8ddd1077b0d9476bb1dabc;
 
     // API3 addresses
     address constant API3_USDC_PROXY = 0x6427406aAED75920aEB0419E361ef5cd6Eff509f;
     address constant FTM_API3_PROXY_ADDRESS = 0x41Efded5ec14C2783a42dA9e8c7970aC313d5576;
     address constant S_API3_PROXY_ADDRESS = 0x726D2E87d73567ecA1b75C063Bd09c1493655918;
     address constant NEW_S_API3_PROXY_ADDRESS = 0x2551A2a96988829D2a55c3b02b88E138023D1cE8;
+    address constant WBTC_API3_PROXY_ADDRESS = 0xcc897BD298FDc90c298e7509818a4d9f4F8ca0D1;
+    address constant ETH_API3_PROXY_ADDRESS = 0xaA5fbCdBa698DFc2f5F2268bCB01012262D7692D;
+
     address constant SCUSD_ADDRESS = 0xd3DCe716f3eF535C5Ff8d041c1A41C3bd89b97aE;
+    address constant SCBTC_ADDRESS = 0xBb30e76d9Bb2CC9631F7fC5Eb8e87B5Aff32bFbd;
+    address constant SCETH_ADDRESS = 0x3bcE5CB273F0F148010BbEa2470e7b5df84C7812;
 
     // Underlying tokens
     address constant ST_S_ADDRESS = 0xE5DA20F15420aD15DE0fa650600aFc998bbE3955;
@@ -57,6 +64,8 @@ contract DeploymentTest is Test {
     CErc20 public constant cWeth = CErc20(0x15eF11b942Cc14e582797A61e95D47218808800D);
     CErc20 public constant cStS = CErc20(0xbAA06b4D6f45ac93B6c53962Ea861e6e3052DC74);
     CErc20 public constant cscUsd = CErc20(0xe5A79Db6623BCA3C65337dd6695Ae6b1f53Bec45);
+    CErc20 public constant cscBtc = CErc20(0x7752f826E0CC11eb049004b050EF1d4Cbe9F3bd1);
+    CErc20 public constant cscEth = CErc20(0x08A1821Fbb570359d458fa1e6740a1e677Aa45B8);
 
     CErc20Delegator cUsdcDelegator = CErc20Delegator(payable(address(cUsdc)));
     CErc20Delegator cWethDelegator = CErc20Delegator(payable(address(cWeth)));
@@ -67,7 +76,11 @@ contract DeploymentTest is Test {
     uint8 constant CTOKEN_DECIMALS = 8;
     uint8 constant SONIC_DECIMALS = 18;
     uint8 constant ST_S_DECIMALS = 18;
+    uint8 constant USDC_DECIMALS = 6;
     uint8 constant SCUSD_DECIMALS = 6;
+    uint8 constant WETH_DECIMALS = 18;
+    uint8 constant SCBTC_DECIMALS = 8;
+    uint8 constant SCETH_DECIMALS = 18;
 
     // Follow Compound v2's initial exchange rate mantissa
     uint256 initialExchangeRateMantissa = 10 ** (SONIC_DECIMALS + 18 - CTOKEN_DECIMALS) / 50;
@@ -266,6 +279,221 @@ contract DeploymentTest is Test {
             uint256 price = priceOracleAggregator.getUnderlyingPrice(CToken(address(cscUsd)));
             console.log("Price of cscUsd", price);
             require(price > 0, "Price not set");
+        }
+
+        vm.stopPrank();
+    }
+
+    function test_deployScBtc() public {
+        vm.startPrank(admin);
+
+        uint256 baseRatePerYearScBtc = 0;
+        uint256 multiplierPerYearScBtc = 0.07e18;
+        uint256 jumpMultiplierPerYearScBtc = 2e18;
+        uint256 kinkScBtc = 0.6e18;
+        JumpRateModelV2 scBtcInterestRateModel = new JumpRateModelV2(
+            baseRatePerYearScBtc, multiplierPerYearScBtc, jumpMultiplierPerYearScBtc, kinkScBtc, SAFE_MULTISIG_ADDRESS
+        );
+
+        uint256 reserveFactorMantissaScBtc = 0.15e18;
+        uint256 protocolSeizeShareMantissaScBtc = 0.028e18;
+        uint8 scBtcDecimals = 8;
+
+        uint256 initialExchangeRateMantissaScBtc = 10 ** (SCBTC_DECIMALS + 18 - CTOKEN_DECIMALS) / 50;
+
+        TokenDeploymentConfig memory cScBtcTokenDeploymentConfig = TokenDeploymentConfig(
+            0.00024 * 1e8, // ~$20 worth of WBTC
+            reserveFactorMantissaScBtc,
+            protocolSeizeShareMantissaScBtc,
+            WBTC_PRICE_FEED_ID,
+            WBTC_API3_PROXY_ADDRESS,
+            scBtcInterestRateModel
+        );
+
+        UnderlyingTokenDeploymentConfig memory underlyingScBtcTokenDeploymentConfig =
+            UnderlyingTokenDeploymentConfig(SCBTC_ADDRESS, "Mach scBTC", "cscBtc", scBtcDecimals);
+
+        CErc20Delegator cscBtc =
+            deployOnlyCErc20Token(underlyingScBtcTokenDeploymentConfig, cScBtcTokenDeploymentConfig);
+
+        vm.stopPrank();
+
+        // Switch to SAFE_MULTISIG_ADDRESS to support market & update oracles
+        vm.startPrank(SAFE_MULTISIG_ADDRESS);
+
+        // Update Pyth Oracle to support $scBTC
+        pythOracle.setPriceFeedId(SCBTC_ADDRESS, WBTC_PRICE_FEED_ID);
+
+        // Update API3 Oracle to support $scBTC
+        api3Oracle.setApi3ProxyAddress(SCBTC_ADDRESS, WBTC_API3_PROXY_ADDRESS);
+
+        // Update price oracle aggregator
+        IOracleSource[] memory scBtcOracles = new IOracleSource[](2);
+        scBtcOracles[0] = api3Oracle;
+        scBtcOracles[1] = pythOracle;
+
+        priceOracleAggregator.updateTokenOracles(SCBTC_ADDRESS, scBtcOracles);
+
+        // Set reserve factor & protocol seize share
+        cscBtc._setReserveFactor(reserveFactorMantissaScBtc);
+        cscBtc._setProtocolSeizeShare(protocolSeizeShareMantissaScBtc);
+
+        require(cscBtc.reserveFactorMantissa() == reserveFactorMantissaScBtc, "Reserve factor not set properly");
+        require(
+            cscBtc.protocolSeizeShareMantissa() == protocolSeizeShareMantissaScBtc,
+            "Protocol seize share not set properly"
+        );
+
+        ERC20 scBtc = ERC20(SCBTC_ADDRESS);
+
+        {
+            scBtc.approve(address(cscBtc), cScBtcTokenDeploymentConfig.underlyingAmountToBurn);
+            require(comptroller._supportMarket(CToken(address(cscBtc))) == NO_ERROR, "Failed to support market");
+
+            console.log("Minting cscBtc: ", cScBtcTokenDeploymentConfig.underlyingAmountToBurn);
+
+            require(
+                cscBtc.mint(cScBtcTokenDeploymentConfig.underlyingAmountToBurn) == NO_ERROR, "Failed to mint cTokens"
+            );
+
+            console.log("cscBtc.balanceOf(SAFE_MULTISIG_ADDRESS)", cscBtc.balanceOf(SAFE_MULTISIG_ADDRESS));
+
+            require(
+                cscBtc.balanceOf(SAFE_MULTISIG_ADDRESS)
+                    == (cScBtcTokenDeploymentConfig.underlyingAmountToBurn * 1e18) / initialExchangeRateMantissaScBtc,
+                "Amount to burn not equal to expected initial exchange rate mantissa"
+            );
+
+            require(
+                cscBtc.totalSupply() == cscBtc.balanceOf(SAFE_MULTISIG_ADDRESS),
+                "Total supply should be equal to balance of admin"
+            );
+
+
+            // Burn entire initial total balance of minted cTokens
+            require(cscBtc.transfer(address(0), cscBtc.balanceOf(SAFE_MULTISIG_ADDRESS)), "Failed to burn cTokens");
+        }
+
+         // Check state of market afterwards all operations
+        {
+            require(
+                cscBtc.balanceOf(address(0)) == cscBtc.totalSupply(), "All cTokens minted on initially should be burned"
+            );
+            (bool isListed, uint256 collateralFactorMantissa) = comptroller.markets(address(cscBtc));
+            require(isListed, "Market should be listed");
+            require(collateralFactorMantissa == 0, "Collateral factor should be 0");
+
+            uint256 price = priceOracleAggregator.getUnderlyingPrice(CToken(address(cscBtc)));
+            require(cscBtc.totalSupply() > 0, "Total supply should be greater than 0");
+
+            console.log("Price of cscBtc", price / 1e28);
+            require(price > 0, "Price not set");
+
+            (uint256 api3Price,) = api3Oracle.getPrice(SCBTC_ADDRESS);
+            console.log("Price of cscBtc (API3)", api3Price / 1e18);
+
+            require(api3Price == price);
+        }
+
+        vm.stopPrank();
+    }
+
+    function test_deployScEth() public {
+        // Switch to SAFE_MULTISIG_ADDRESS to support market & update oracles
+        vm.startPrank(SAFE_MULTISIG_ADDRESS);
+
+        // Update Pyth Oracle to support $scBTC
+        pythOracle.setPriceFeedId(SCETH_ADDRESS, SCETH_PRICE_FEED_ID);
+
+        // Update API3 Oracle to support $scBTC
+        api3Oracle.setApi3ProxyAddress(SCETH_ADDRESS, ETH_API3_PROXY_ADDRESS);
+
+        // Update price oracle aggregator
+        IOracleSource[] memory scEthOracles = new IOracleSource[](2);
+        scEthOracles[0] = pythOracle;
+        scEthOracles[1] = api3Oracle;
+
+        priceOracleAggregator.updateTokenOracles(SCETH_ADDRESS, scEthOracles);
+
+        // Set reserve factor & protocol seize share
+        uint256 reserveFactorMantissaScEth = 0.15e18;
+        uint256 protocolSeizeShareMantissaScEth = 0.028e18;
+
+        TokenDeploymentConfig memory cScEthTokenDeploymentConfig = TokenDeploymentConfig(
+            0.01e18, // ~$20 worth of ETH
+            reserveFactorMantissaScEth,
+            protocolSeizeShareMantissaScEth,
+            SCETH_PRICE_FEED_ID,
+            ETH_API3_PROXY_ADDRESS,
+            InterestRateModel(address(0))
+        );
+
+        UnderlyingTokenDeploymentConfig memory underlyingScEthTokenDeploymentConfig =
+            UnderlyingTokenDeploymentConfig(SCETH_ADDRESS, "Mach scETH", "cscEth", SCETH_DECIMALS);
+
+        cscEth._setReserveFactor(reserveFactorMantissaScEth);
+        cscEth._setProtocolSeizeShare(protocolSeizeShareMantissaScEth);
+
+        require(cscEth.reserveFactorMantissa() == reserveFactorMantissaScEth, "Reserve factor not set properly");
+        require(
+            cscEth.protocolSeizeShareMantissa() == protocolSeizeShareMantissaScEth,
+            "Protocol seize share not set properly"
+        );
+
+        ERC20 scEth = ERC20(SCETH_ADDRESS);
+
+        {
+            scEth.approve(address(cscEth), cScEthTokenDeploymentConfig.underlyingAmountToBurn);
+            require(comptroller._supportMarket(CToken(address(cscEth))) == NO_ERROR, "Failed to support market");
+
+            console.log("Minting cscEth: ", cScEthTokenDeploymentConfig.underlyingAmountToBurn);
+
+            require(
+                cscEth.mint(cScEthTokenDeploymentConfig.underlyingAmountToBurn) == NO_ERROR, "Failed to mint cTokens"
+            );
+
+            console.log("cscEth.balanceOf(SAFE_MULTISIG_ADDRESS)", cscEth.balanceOf(SAFE_MULTISIG_ADDRESS));
+
+            uint256 initialExchangeRateMantissaScEth = 10 ** (SCETH_DECIMALS + 18 - CTOKEN_DECIMALS) / 50;
+
+            require(
+                cscEth.balanceOf(SAFE_MULTISIG_ADDRESS)
+                    == (cScEthTokenDeploymentConfig.underlyingAmountToBurn * 1e18) / initialExchangeRateMantissaScEth,
+                "Amount to burn not equal to expected initial exchange rate mantissa"
+            );
+
+            require(
+                cscEth.totalSupply() == cscEth.balanceOf(SAFE_MULTISIG_ADDRESS),
+                "Total supply should be equal to balance of admin"
+            );
+            require(cscEth.totalSupply() > 0, "Total supply should be greater than 0");
+
+
+            // Burn entire initial total balance of minted cTokens
+            require(cscEth.transfer(address(0), cscEth.balanceOf(SAFE_MULTISIG_ADDRESS)), "Failed to burn cTokens");
+        }
+
+         // Check state of market afterwards all operations
+        {
+            require(
+                cscEth.balanceOf(address(0)) == cscEth.totalSupply(), "All cTokens minted on initially should be burned"
+            );
+            (bool isListed, uint256 collateralFactorMantissa) = comptroller.markets(address(cscEth));
+            require(isListed, "Market should be listed");
+            require(collateralFactorMantissa == 0, "Collateral factor should be 0");
+
+            uint256 price = priceOracleAggregator.getUnderlyingPrice(CToken(address(cscEth)));
+
+            console.log("Price of cscEth", price / 1e18);
+            require(price > 0, "Price not set");
+
+            (uint256 pythPrice,) = pythOracle.getPrice(SCETH_ADDRESS);
+            console.log("Price of cscEth (PYTH)", pythPrice / 1e18);
+
+            (uint256 api3Price,) = api3Oracle.getPrice(SCETH_ADDRESS);  
+            console.log("Price of cscEth (API3)", api3Price / 1e18);
+
+            require(pythPrice == price);
         }
 
         vm.stopPrank();
@@ -539,41 +767,63 @@ contract DeploymentTest is Test {
 
     function test_setMarketSupplyAndBorrowCaps() public {
         vm.startPrank(SAFE_MULTISIG_ADDRESS);
+
         // Update market supply cap
         {
-            CToken[] memory cTokens = new CToken[](1);
-            cTokens[0] = CToken(address(cStS));
+            CToken[] memory cTokens = new CToken[](4);
+            cTokens[0] = CToken(address(cSonic));
+            cTokens[1] = CToken(address(cStS));
+            cTokens[2] = CToken(address(cscUsd));
+            cTokens[3] = CToken(address(cUsdc));
 
-            uint256[] memory supplyCaps = new uint256[](1);
-            supplyCaps[0] = 500000000000000000000000;
+            uint256[] memory supplyCaps = new uint256[](4);
+            supplyCaps[0] = 5e6 * (10 ** SONIC_DECIMALS);
+            supplyCaps[1] = 2.5e6 * (10 ** ST_S_DECIMALS);
+            supplyCaps[2] = 1.5e6 * (10 ** SCUSD_DECIMALS);
+            supplyCaps[3] = 1.5e6 * (10 ** USDC_DECIMALS);
+
             comptroller._setMarketSupplyCaps(cTokens, supplyCaps);
 
-            console.log("Supply cap set for cStS", comptroller.supplyCaps(address(cStS)));
             require(
-                comptroller.supplyCaps(address(cStS)) == 500000 * 10 ** ST_S_DECIMALS, "Supply cap not set properly"
+                comptroller.supplyCaps(address(cSonic)) == 5000000 * 10 ** SONIC_DECIMALS, "Supply cap not set properly"
+            );
+            require(
+                comptroller.supplyCaps(address(cStS)) == 2500000 * 10 ** ST_S_DECIMALS, "Supply cap not set properly"
+            );
+            require(
+                comptroller.supplyCaps(address(cscUsd)) == 1500000 * 10 ** SCUSD_DECIMALS, "Supply cap not set properly"
+            );
+            require(
+                comptroller.supplyCaps(address(cUsdc)) == 1500000 * 10 ** USDC_DECIMALS, "Supply cap not set properly"
             );
         }
-
+    
         // Update market borrow cap
         {
-            CToken[] memory cTokens = new CToken[](2);
-            cTokens[0] = CToken(address(cStS));
-            cTokens[1] = CToken(address(cSonic));
+            CToken[] memory cTokens = new CToken[](3);
+            cTokens[0] = CToken(address(cscUsd));
+            cTokens[1] = CToken(address(cUsdc));
+            cTokens[2] = CToken(address(cWeth));
 
-            uint256[] memory borrowCaps = new uint256[](2);
-            borrowCaps[0] = 250000000000000000000000;
-            borrowCaps[1] = 750000000000000000000000;
+            uint256[] memory borrowCaps = new uint256[](3);
+            borrowCaps[0] = 675000 * (10 ** SCUSD_DECIMALS);
+            borrowCaps[1] = 675000 * (10 ** USDC_DECIMALS);
+            borrowCaps[2] = 25 * (10 ** WETH_DECIMALS);
 
             comptroller._setMarketBorrowCaps(cTokens, borrowCaps);
 
-            console.log("Borrow cap set for cStS", comptroller.borrowCaps(address(cStS)));
-            console.log("Borrow cap set for cSonic", comptroller.borrowCaps(address(cSonic)));
-            require(
-                comptroller.borrowCaps(address(cStS)) == 250000 * 10 ** ST_S_DECIMALS, "Borrow cap not set properly"
-            );
+            console.log("Borrow cap set for scUSD", comptroller.borrowCaps(address(cscUsd)));
+            console.log("Borrow cap set for cUsdc", comptroller.borrowCaps(address(cUsdc)));
+            console.log("Borrow cap set for cWeth", comptroller.borrowCaps(address(cWeth)));
 
             require(
-                comptroller.borrowCaps(address(cSonic)) == 750000 * 10 ** SONIC_DECIMALS, "Borrow cap not set properly"
+                comptroller.borrowCaps(address(cscUsd)) == 675000 * 10 ** SCUSD_DECIMALS, "Borrow cap not set properly"
+            );
+            require(
+                comptroller.borrowCaps(address(cUsdc)) == 675000 * 10 ** USDC_DECIMALS, "Borrow cap not set properly"
+            );
+            require(
+                comptroller.borrowCaps(address(cWeth)) == 25 * 10 ** WETH_DECIMALS, "Borrow cap not set properly"
             );
         }
 

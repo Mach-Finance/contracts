@@ -55,6 +55,7 @@ contract DeploymentScript is Script {
     bytes32 constant USDC_PRICE_FEED_ID = 0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a;
     bytes32 constant SOLV_PRICE_FEED_ID = 0xf253cf87dc7d5ed5aa14cba5a6e79aee8bcfaef885a0e1b807035a0bbecc36fa;
     bytes32 constant ETH_PRICE_FEED_ID = 0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace;
+    bytes32 constant SCETH_PRICE_FEED_ID = 0x8bb5e69ed1ab19642a0e7e851b1ed7b3579d0548bc8ddd1077b0d9476bb1dabc;
     bytes32 constant S_PRICE_FEED_ID = 0xf490b178d0c85683b7a0f2388b40af2e6f7c90cbe0f96b31f315f08d0e5a2d6d;
 
     address public constant API3_USDC_PROXY = 0x6427406aAED75920aEB0419E361ef5cd6Eff509f;
@@ -69,7 +70,8 @@ contract DeploymentScript is Script {
     address public constant ST_S_ADDRESS = 0xE5DA20F15420aD15DE0fa650600aFc998bbE3955;
     address public constant SOLV_BTC_ADDRESS = 0x541FD749419CA806a8bc7da8ac23D346f2dF8B77;
     address public constant SCUSD_ADDRESS = 0xd3DCe716f3eF535C5Ff8d041c1A41C3bd89b97aE;
-
+    address public constant SCBTC_ADDRESS = 0xBb30e76d9Bb2CC9631F7fC5Eb8e87B5Aff32bFbd;
+    address public constant SCETH_ADDRESS = 0x3bcE5CB273F0F148010BbEa2470e7b5df84C7812;
     // TODO: Update this to the actual WBTC address
     address public constant WBTC_ADDRESS = address(123);
 
@@ -88,6 +90,8 @@ contract DeploymentScript is Script {
     uint8 constant WETH_DECIMALS = 18;
     uint8 constant SOLV_BTC_DECIMALS = 18;
     uint8 constant SCUSD_DECIMALS = 6;
+    uint8 constant SCBTC_DECIMALS = 8;
+    uint8 constant SCETH_DECIMALS = 18;
 
     Comptroller comptrollerImplementation = Comptroller(0x147A9deA1DA08cFBb3D496A4e34C0D8C3b73Eaf8);
     Unitroller unitroller = Unitroller(payable(0x646F91AbD5Ab94B76d1F9C5D9490A2f6DDf25730));
@@ -105,6 +109,8 @@ contract DeploymentScript is Script {
     CErc20 public constant cUsdc = CErc20(0xC84F54B2dB8752f80DEE5b5A48b64a2774d2B445);
     CErc20 public constant cWeth = CErc20(0x15eF11b942Cc14e582797A61e95D47218808800D);
     CErc20 public constant cStS = CErc20(0xbAA06b4D6f45ac93B6c53962Ea861e6e3052DC74);
+    CErc20 public constant cscUsd = CErc20(0xe5A79Db6623BCA3C65337dd6695Ae6b1f53Bec45);
+    CErc20 public constant cScEth = CErc20(0x08A1821Fbb570359d458fa1e6740a1e677Aa45B8);
 
     function run() public {
         vm.startBroadcast();
@@ -405,6 +411,82 @@ contract DeploymentScript is Script {
         // console.log("SAFE_MULTISIG_ADDRESS", SAFE_MULTISIG_ADDRESS);
 
         // require(cScUsd.admin() == SAFE_MULTISIG_ADDRESS, "Admin of CErc20Delegator should be SAFE_MULTISIG_ADDRESS");
+
+        // // scBTC
+        // uint256 baseRatePerYearScBtc = 0;
+        // uint256 multiplierPerYearScBtc = 0.07e18;
+        // uint256 jumpMultiplierPerYearScBtc = 2e18;
+        // uint256 kinkScBtc = 0.6e18;
+
+        // JumpRateModelV2 scBtcInterestRateModel = new JumpRateModelV2(
+        //     baseRatePerYearScBtc, multiplierPerYearScBtc, jumpMultiplierPerYearScBtc, kinkScBtc, SAFE_MULTISIG_ADDRESS
+        // );
+
+        // uint256 reserveFactorMantissaScBtc = 0.15e18;
+        // uint256 protocolSeizeShareMantissaScBtc = 0.028e18;
+
+        // UnderlyingTokenDeploymentConfig memory underlyingScBtcTokenDeploymentConfig =
+        //     UnderlyingTokenDeploymentConfig(SCBTC_ADDRESS, "Mach scBTC", "cscBTC", SCBTC_DECIMALS);
+
+        // TokenDeploymentConfig memory cScBtcTokenDeploymentConfig = TokenDeploymentConfig(
+        //     0.0002 * 10 ** 8, // ~$20 worth of scBTC
+        //     reserveFactorMantissaScBtc,
+        //     protocolSeizeShareMantissaScBtc,
+        //     WBTC_PRICE_FEED_ID,
+        //     API3_WBTC_PROXY,
+        //     scBtcInterestRateModel
+        // );
+
+        // CErc20Delegator cScBtc = deployOnlyCErc20Token(underlyingScBtcTokenDeploymentConfig, cScBtcTokenDeploymentConfig);
+        // console.log("cScBtc deployed at", address(cScBtc));
+
+        // // Check initial exchange rate
+        // console.log("initial exchange rate", cScBtc.exchangeRateStored());
+        // console.log("totalSupply", cScBtc.totalSupply());
+
+        // // 1 cToken = 0.02 underlying token at start
+        // require(cScBtc.exchangeRateStored() == 0.02e18, "Initial exchange rate should be 0.02e18");
+
+        // // Check admin of CErc20Delegator
+        // console.log("admin of CErc20Delegator", cScBtc.admin());
+        // console.log("SAFE_MULTISIG_ADDRESS", SAFE_MULTISIG_ADDRESS);
+
+        // require(cScBtc.admin() == SAFE_MULTISIG_ADDRESS, "Admin of CErc20Delegator should be SAFE_MULTISIG_ADDRESS");
+
+        // scETH
+        // uint256 baseRatePerYearScEth = 0;
+        // uint256 multiplierPerYearScEth = 0.061e18;
+        // uint256 jumpMultiplierPerYearScEth = 3.5e18;
+        // uint256 kinkScEth = 0.35e18;
+
+        // JumpRateModelV2 scEthInterestRateModel = new JumpRateModelV2(
+        //     baseRatePerYearScEth, multiplierPerYearScEth, jumpMultiplierPerYearScEth, kinkScEth, SAFE_MULTISIG_ADDRESS
+        // );
+
+        // uint256 reserveFactorMantissaScEth = 0.15e18;
+        // uint256 protocolSeizeShareMantissaScEth = 0.028e18;
+
+        // UnderlyingTokenDeploymentConfig memory underlyingScEthTokenDeploymentConfig =
+        //     UnderlyingTokenDeploymentConfig(SCETH_ADDRESS, "Mach scETH", "cscETH", SCETH_DECIMALS);
+
+        // TokenDeploymentConfig memory cScEthTokenDeploymentConfig = TokenDeploymentConfig(
+        //     0.01e18, // ~$20 worth of scETH
+        //     reserveFactorMantissaScEth,
+        //     protocolSeizeShareMantissaScEth,
+        //     SCETH_PRICE_FEED_ID,
+        //     API3_ETH_PROXY,
+        //     scEthInterestRateModel
+        // );
+
+        // CErc20Delegator cScEth = deployOnlyCErc20Token(underlyingScEthTokenDeploymentConfig, cScEthTokenDeploymentConfig);
+        // console.log("cScEth deployed at", address(cScEth));
+
+        // // Check initial exchange rate
+        // console.log("initial exchange rate", cScEth.exchangeRateStored());
+
+        // // Check admin of CErc20Delegator
+        // console.log("admin of CErc20Delegator", cScEth.admin());
+        // require(cScEth.admin() == SAFE_MULTISIG_ADDRESS, "Admin of CErc20Delegator should be SAFE_MULTISIG_ADDRESS");
 
         vm.stopBroadcast();
     }
@@ -757,6 +839,7 @@ contract DeploymentScript is Script {
         console.log("Token name:", newCErc20.name());
         console.log("Token symbol:", newCErc20.symbol());
         console.log("Token decimals:", newCErc20.decimals());
+        console.log("Underlying token:", newCErc20.underlying());
 
         return newCtoken;
     }
