@@ -92,12 +92,12 @@ contract OriginSonicTest is Test, IError {
     function test_invalidTokenPrice() public {
         address randomToken = makeAddr("randomToken");
         (uint256 price, bool isValid) = wOSAPI3Oracle.getPrice(randomToken);
-        
+
         vm.assertEq(isValid, false);
         vm.assertEq(price, 0);
-        
+
         (price, isValid) = wOSPythOracle.getPrice(randomToken);
-        
+
         vm.assertEq(isValid, false);
         vm.assertEq(price, 0);
     }
@@ -122,7 +122,7 @@ contract OriginSonicTest is Test, IError {
 
         // Warp time to trigger stale price
         vm.warp(block.timestamp + staleThreshold + 1);
-       
+
         (wOSPrice, isValid) = wOSAPI3Oracle.getPrice(wOS);
         vm.assertEq(isValid, false);
         vm.assertEq(wOSPrice, 0);
@@ -191,12 +191,10 @@ contract OriginSonicTest is Test, IError {
 
     function test_setAPI3ProxyAddress() public {
         address newProxyAddress = makeAddr("newProxyAddress");
-        
+
         // Mock the API3 proxy to not revert on read
         vm.mockCall(
-            newProxyAddress,
-            abi.encodeWithSignature("read()"),
-            abi.encode(int224(1e18), uint32(block.timestamp))
+            newProxyAddress, abi.encodeWithSignature("read()"), abi.encode(int224(1e18), uint32(block.timestamp))
         );
 
         // Non-admin should not be able to update proxy address
@@ -207,14 +205,14 @@ contract OriginSonicTest is Test, IError {
         // Admin should be able to update proxy address
         vm.prank(SAFE_MULTISIG_ADDRESS);
         wOSAPI3Oracle.setOriginSonicAPI3ProxyAddress(newProxyAddress);
-        
+
         // Verify the proxy address was updated
         vm.assertEq(address(wOSAPI3Oracle.sApi3Proxy()), newProxyAddress);
     }
 
     function test_setPythPriceFeedId() public {
         bytes32 newPriceFeedId = bytes32(uint256(1));
-        
+
         // Mock the Pyth price feed to not revert on getPriceUnsafe
         PythStructs.Price memory mockPrice = PythStructs.Price({
             price: int64(1e8),
@@ -222,7 +220,7 @@ contract OriginSonicTest is Test, IError {
             expo: int32(-8),
             publishTime: uint64(block.timestamp)
         });
-        
+
         vm.mockCall(
             address(0x2880aB155794e7179c9eE2e38200202908C17B43), // pyth address
             abi.encodeWithSignature("getPriceUnsafe(bytes32)", newPriceFeedId),
@@ -237,7 +235,7 @@ contract OriginSonicTest is Test, IError {
         // Admin should be able to update price feed id
         vm.prank(SAFE_MULTISIG_ADDRESS);
         wOSPythOracle.setSonicPriceFeedId(newPriceFeedId);
-        
+
         // Verify the price feed id was updated
         vm.assertEq(wOSPythOracle.sonicPriceFeedId(), newPriceFeedId);
     }

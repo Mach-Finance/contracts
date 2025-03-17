@@ -371,12 +371,11 @@ contract DeploymentTest is Test {
                 "Total supply should be equal to balance of admin"
             );
 
-
             // Burn entire initial total balance of minted cTokens
             require(cscBtc.transfer(address(0), cscBtc.balanceOf(SAFE_MULTISIG_ADDRESS)), "Failed to burn cTokens");
         }
 
-         // Check state of market afterwards all operations
+        // Check state of market afterwards all operations
         {
             require(
                 cscBtc.balanceOf(address(0)) == cscBtc.totalSupply(), "All cTokens minted on initially should be burned"
@@ -472,12 +471,11 @@ contract DeploymentTest is Test {
             );
             require(cscEth.totalSupply() > 0, "Total supply should be greater than 0");
 
-
             // Burn entire initial total balance of minted cTokens
             require(cscEth.transfer(address(0), cscEth.balanceOf(SAFE_MULTISIG_ADDRESS)), "Failed to burn cTokens");
         }
 
-         // Check state of market afterwards all operations
+        // Check state of market afterwards all operations
         {
             require(
                 cscEth.balanceOf(address(0)) == cscEth.totalSupply(), "All cTokens minted on initially should be burned"
@@ -494,7 +492,7 @@ contract DeploymentTest is Test {
             (uint256 pythPrice,) = pythOracle.getPrice(SCETH_ADDRESS);
             console.log("Price of cscEth (PYTH)", pythPrice / 1e18);
 
-            (uint256 api3Price,) = api3Oracle.getPrice(SCETH_ADDRESS);  
+            (uint256 api3Price,) = api3Oracle.getPrice(SCETH_ADDRESS);
             console.log("Price of cscEth (API3)", api3Price / 1e18);
 
             require(pythPrice == price);
@@ -803,7 +801,7 @@ contract DeploymentTest is Test {
                 comptroller.supplyCaps(address(cUsdc)) == 1500000 * 10 ** USDC_DECIMALS, "Supply cap not set properly"
             );
         }
-    
+
         // Update market borrow cap
         {
             CToken[] memory cTokens = new CToken[](3);
@@ -828,9 +826,7 @@ contract DeploymentTest is Test {
             require(
                 comptroller.borrowCaps(address(cUsdc)) == 675000 * 10 ** USDC_DECIMALS, "Borrow cap not set properly"
             );
-            require(
-                comptroller.borrowCaps(address(cWeth)) == 25 * 10 ** WETH_DECIMALS, "Borrow cap not set properly"
-            );
+            require(comptroller.borrowCaps(address(cWeth)) == 25 * 10 ** WETH_DECIMALS, "Borrow cap not set properly");
         }
 
         vm.stopPrank();

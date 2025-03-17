@@ -41,11 +41,11 @@ contract OriginSonicPythOracle is IOracleSource, Ownable2Step {
 
         // Feed Decimals for $S is +8
         (uint256 price, uint256 feedDecimals) = _getSonicLatestPrice();
-        
+
         if (price == 0) {
             return (0, false);
         }
-        
+
         uint256 tokenFeedDecimals = feedDecimals + S_DECIMALS;
         uint256 scaledPrice;
 
@@ -126,4 +126,4 @@ contract OriginSonicPythOracle is IOracleSource, Ownable2Step {
         stalePriceThreshold = _stalePriceThreshold;
         emit StalePriceThresholdSet(_stalePriceThreshold);
     }
-} 
+}
