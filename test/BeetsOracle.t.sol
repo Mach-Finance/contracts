@@ -15,7 +15,7 @@ import {BeetsStakedSPythOracle} from "../src/Oracles/Beets/BeetsStakedSPythOracl
 import {IstS} from "../src/Oracles/Beets/IstS.sol";
 import {IError} from "./BaseTest.t.sol";
 
-contract BeetsStakedSAPI3OracleTest is Test, IError {
+contract BeetsStakedSonicTest is Test, IError {
     address public constant SAFE_MULTISIG_ADDRESS = 0x43410B419191AB7Df9d2e943995699f80898A058;
 
     Comptroller comptrollerImplementation = Comptroller(0x147A9deA1DA08cFBb3D496A4e34C0D8C3b73Eaf8);

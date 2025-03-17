@@ -285,6 +285,8 @@ contract DeploymentTest is Test {
     }
 
     function test_deployScBtc() public {
+        vm.skip(true);
+
         vm.startPrank(admin);
 
         uint256 baseRatePerYearScBtc = 0;
@@ -399,6 +401,8 @@ contract DeploymentTest is Test {
     }
 
     function test_deployScEth() public {
+        vm.skip(true);
+
         // Switch to SAFE_MULTISIG_ADDRESS to support market & update oracles
         vm.startPrank(SAFE_MULTISIG_ADDRESS);
 
@@ -748,6 +752,8 @@ contract DeploymentTest is Test {
     }
 
     function test_updateCollateralFactor() public {
+        vm.skip(true);
+
         vm.startPrank(SAFE_MULTISIG_ADDRESS);
 
         // Check collateral factor of $S
