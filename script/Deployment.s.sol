@@ -101,6 +101,8 @@ contract DeploymentScript is Script {
     CErc20 public constant cUsdc = CErc20(0xC84F54B2dB8752f80DEE5b5A48b64a2774d2B445);
     CErc20 public constant cWeth = CErc20(0x15eF11b942Cc14e582797A61e95D47218808800D);
     CErc20 public constant cStS = CErc20(0xbAA06b4D6f45ac93B6c53962Ea861e6e3052DC74);
+    CErc20 public constant cwOS = CErc20(0x368D75a257371D8E80A3582eefc061c187062fd1);
+    CErc20 public constant cScBtc = CErc20(0x7752f826E0CC11eb049004b050EF1d4Cbe9F3bd1);
 
     function run() public {
         vm.startBroadcast();

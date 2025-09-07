@@ -20,7 +20,8 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 // Helper functions for upgrading contracts from OpenZeppelin, works with Foundry
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-
+import {Comptroller} from "../src/Comptroller.sol";
+import {CErc20} from "../src/CErc20.sol";
 import "forge-std/console.sol";
 
 contract OracleTest is BaseTest {
@@ -32,6 +33,9 @@ contract OracleTest is BaseTest {
 
     address constant SONIC_BLAZE_TESTNET_PYTH_ORACLE = 0x2880aB155794e7179c9eE2e38200202908C17B43;
     address constant SONIC_BLAZE_TESTNET_BAND_ORACLE = 0x8c064bCf7C0DA3B3b090BAbFE8f3323534D84d68;
+
+    address constant wOS = 0x9F0dF7799f6FDAd409300080cfF680f5A23df4b1;
+    address constant cwOS = 0x368D75a257371D8E80A3582eefc061c187062fd1;
 
     uint256 constant SONIC_BLAZE_TESTNET_CHAIN_ID = 57054;
 
@@ -943,5 +947,85 @@ contract OracleTest is BaseTest {
         MockPriceOracleAggregatorV2(proxy).setCounter(10);
         vm.assertEq(MockPriceOracleAggregatorV2(proxy).getCounter(), 10);
         vm.stopPrank();
+    }
+
+    function test_api3_wOS_oracle_upgrade() public {
+        // Skip upgrade oracle test, as it has been peformed
+        // Leaving test here as reference for future upgrades
+        vm.skip(true);
+
+        address safeAdmin = 0x43410B419191AB7Df9d2e943995699f80898A058;
+        Comptroller comptroller = Comptroller(0x646F91AbD5Ab94B76d1F9C5D9490A2f6DDf25730);
+
+        api3Oracle = API3Oracle(0xD458d8CA6e52E4D8E6938B6720bf7d9E1A42d175);
+        priceOracleAggregator = PriceOracleAggregator(0x139Bf94a9cA4a3DB61a7Ce2022F7AECa12cEAa9d);
+
+        // Check wOS price via PriceOracleAggregator
+        uint256 wOSPrice = priceOracleAggregator.getUnderlyingPrice(CToken(address(cwOS)));
+        vm.assertGt(wOSPrice, 0);
+
+        // Check all prices for the given cTokens
+        address[7] memory cTokens = [
+            0x9F5d9f2FDDA7494aA58c90165cF8E6B070Fe92e6, // cSonic
+            0xC84F54B2dB8752f80DEE5b5A48b64a2774d2B445, // cUSDC
+            0x15eF11b942Cc14e582797A61e95D47218808800D, // cWETH
+            0xe5A79Db6623BCA3C65337dd6695Ae6b1f53Bec45, // cscUSD
+            0x08A1821Fbb570359d458fa1e6740a1e677Aa45B8, // cscETH
+            0x7752f826E0CC11eb049004b050EF1d4Cbe9F3bd1, // cscBTC
+            0xbAA06b4D6f45ac93B6c53962Ea861e6e3052DC74 // cstS
+        ];
+
+        // cToken addresses and their names for logging
+        string[7] memory cTokenNames = ["cSonic", "cUSDC", "cWETH", "cscUSD", "cscETH", "cscBTC", "cstS"];
+
+        uint256[] memory prices = new uint256[](cTokens.length);
+        for (uint256 i = 0; i < cTokens.length; i++) {
+            prices[i] = priceOracleAggregator.getUnderlyingPrice(CToken(cTokens[i]));
+            // Log the name, address, and price
+            console.log("cToken", cTokenNames[i], cTokens[i]);
+            console.log("price", prices[i]);
+        }
+
+        // Update API3Oracle wOS price with new API3 proxy address
+        address apiwOSProxy = 0x7052210aE4e3624975d706EF8901CDb455d7DEC4;
+        vm.prank(safeAdmin);
+        api3Oracle.setApi3ProxyAddress(address(wOS), apiwOSProxy);
+
+        // Check wOS price via PriceOracleAggregator after upgrade
+        uint256 newWOSPrice = priceOracleAggregator.getUnderlyingPrice(CToken(address(cwOS)));
+        vm.assertGt(newWOSPrice, 0);
+
+        // Check all prices for the given cTokens after upgrade
+        for (uint256 i = 0; i < cTokens.length; i++) {
+            uint256 price = priceOracleAggregator.getUnderlyingPrice(CToken(cTokens[i]));
+            // Log the name, address, and price
+            console.log("cToken", cTokenNames[i], cTokens[i]);
+            console.log("price", price);
+
+            // Make sure price is same as before upgrade
+            vm.assertEq(price, prices[i]);
+        }
+
+        // Compare prices, should be different
+        vm.assertGt(newWOSPrice, wOSPrice);
+        console.log("wOSPrice", wOSPrice);
+        console.log("newWOSPrice", newWOSPrice);
+
+        // Pause mint / borrow for cwOS
+        vm.prank(safeAdmin);
+        comptroller._setMintPaused(CToken(address(cwOS)), true);
+        vm.prank(safeAdmin);
+        comptroller._setBorrowPaused(CToken(address(cwOS)), true);
+
+        // Mint wOS to admin
+        uint256 wOSAmount = 1e18;
+        deal(wOS, address(admin), wOSAmount);
+        uint256 wOSBalanceBefore = ERC20(wOS).balanceOf(address(admin));
+
+        // Try to mint cwOS
+        vm.prank(admin);
+        ERC20(wOS).approve(address(cwOS), wOSAmount);
+        vm.prank(admin);
+        CErc20(address(cwOS)).mint(wOSAmount);
     }
 }
