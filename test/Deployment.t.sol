@@ -420,7 +420,7 @@ contract DeploymentTest is Test {
         // Check collateral factor of $S
         (bool isSonicListed, uint256 sonicCollateralFactorMantissa) = comptroller.markets(address(cSonic));
         require(isSonicListed, "Market should be listed");
-        require(sonicCollateralFactorMantissa == 0.7e18, "Collateral factor should be 0.7e18");
+        require(sonicCollateralFactorMantissa == 0.75e18, "Collateral factor should be 0.7e18");
 
         console.log("Sonic collateral factor", sonicCollateralFactorMantissa);
 
